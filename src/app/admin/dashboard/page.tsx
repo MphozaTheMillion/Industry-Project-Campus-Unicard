@@ -1,8 +1,8 @@
 
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
-import { collection, getDocs, doc, updateDoc, getDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
+import { collection, getDocs, doc, getDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 import {
   Table,
@@ -112,35 +112,6 @@ export default function AdminDashboardPage() {
     fetchAllUsersWithStatus();
   }, [adminUser, isAdminLoading, firestore]);
 
-  const handleUpdateStatus = async (userId: string, status: 'suspended' | 'revoked') => {
-    if (!firestore) return;
-    const cardDocRef = doc(firestore, 'userProfiles', userId, 'digitalIdCards', 'main');
-    
-    updateDoc(cardDocRef, { cardStatus: status })
-      .then(() => {
-        setUsers(prevUsers =>
-          prevUsers.map(u => (u.id === userId ? { ...u, cardStatus: status } : u))
-        );
-        toast({
-          title: "Status Updated",
-          description: `User's card has been ${status}.`,
-        });
-      })
-      .catch(error => {
-        const permissionError = new FirestorePermissionError({
-          path: cardDocRef.path,
-          operation: 'update',
-          requestResourceData: { cardStatus: status },
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        toast({
-          variant: "destructive",
-          title: "Update Failed",
-          description: "Could not update the user's card status. Check permissions.",
-        });
-      });
-  };
-
   const handleRemoveUser = async (userToRemove: UserProfile) => {
     if (!firestore) return;
 
@@ -223,15 +194,13 @@ export default function AdminDashboardPage() {
                   <TableHead>User Type</TableHead>
                   <TableHead>Card Status</TableHead>
                   <TableHead>Last Login</TableHead>
-                  <TableHead>Suspend Card</TableHead>
-                  <TableHead>Revoke Card</TableHead>
                   <TableHead>Remove User</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {pageIsLoading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center">Loading users...</TableCell>
+                    <TableCell colSpan={6} className="text-center">Loading users...</TableCell>
                   </TableRow>
                 ) : users.length > 0 ? (
                   users.map((user) => (
@@ -243,28 +212,6 @@ export default function AdminDashboardPage() {
                         <StatusBadge status={user.cardStatus} />
                       </TableCell>
                        <TableCell className="whitespace-nowrap">{formatDate(user.lastLogin)}</TableCell>
-                       <TableCell>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleUpdateStatus(user.id, 'suspended')}
-                            disabled={user.cardStatus === 'suspended' || !user.cardStatus}
-                          >
-                            <Ban className="mr-2 h-4 w-4" />
-                            Suspend
-                          </Button>
-                       </TableCell>
-                       <TableCell>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleUpdateStatus(user.id, 'revoked')}
-                            disabled={user.cardStatus === 'revoked' || !user.cardStatus}
-                          >
-                            <UserX className="mr-2 h-4 w-4" />
-                            Revoke
-                          </Button>
-                       </TableCell>
                        <TableCell>
                           <AlertDialog>
                               <AlertDialogTrigger asChild>
@@ -294,7 +241,7 @@ export default function AdminDashboardPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center">
+                    <TableCell colSpan={6} className="text-center">
                       {error ? "You don't have permission to view users." : "No users found."}
                     </TableCell>
                   </TableRow>
