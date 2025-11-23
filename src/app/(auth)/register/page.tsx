@@ -42,44 +42,65 @@ const formSchema = z.object({
   confirmPassword: z.string().optional(),
   courseCode: z.string().optional(),
   campusName: z.string().optional(),
-}).refine((data) => {
-  if (data.userType === 'student' || data.userType === 'campus_staff') {
-    return data.password === data.confirmPassword;
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+}).refine(data => {
+  if (data.userType === 'student') {
+    return !!data.studentNumber;
   }
   return true;
 }, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
-}).refine(data => data.userType !== 'student' || !!data.studentNumber, {
   message: 'Student number is required.',
   path: ['studentNumber'],
-}).refine(data => data.userType !== 'student' || !!data.courseCode, {
+}).refine(data => {
+  if (data.userType === 'student') {
+    return !!data.courseCode;
+  }
+  return true;
+}, {
   message: 'Course code is required.',
   path: ['courseCode'],
-}).refine(data => data.userType !== 'student' || !!data.campusName, {
-  message: 'Campus name is required.',
-  path: ['campusName'],
-}).refine(data => data.userType !== 'campus_staff' || !!data.workId, {
+}).refine(data => {
+    if (data.userType === 'student' || data.userType === 'campus_staff' || data.userType === 'administrator' || data.userType === 'technician') {
+        return !!data.campusName;
+    }
+    return true;
+}, {
+    message: 'Campus name is required.',
+    path: ['campusName'],
+}).refine(data => {
+  if (data.userType === 'campus_staff') {
+    return !!data.workId;
+  }
+  return true;
+}, {
     message: 'Work ID is required.',
     path: ['workId'],
-}).refine(data => data.userType !== 'campus_staff' || !!data.department, {
+}).refine(data => {
+  if (data.userType === 'campus_staff') {
+    return !!data.department;
+  }
+  return true;
+}, {
     message: 'Department is required.',
     path: ['department'],
-}).refine(data => data.userType !== 'campus_staff' || !!data.campusName, {
-    message: 'Campus name is required.',
-    path: ['campusName'],
-}).refine(data => data.userType !== 'administrator' || !!data.adminId, {
+}).refine(data => {
+  if (data.userType === 'administrator') {
+    return !!data.adminId;
+  }
+  return true;
+}, {
   message: 'Admin ID is required.',
   path: ['adminId'],
-}).refine(data => data.userType !== 'technician' || !!data.technicianId, {
+}).refine(data => {
+  if (data.userType === 'technician') {
+    return !!data.technicianId;
+  }
+  return true;
+}, {
   message: 'Technician ID is required.',
   path: ['technicianId'],
-}).refine(data => data.userType !== 'administrator' || !!data.campusName, {
-    message: 'Campus name is required.',
-    path: ['campusName'],
-}).refine(data => data.userType !== 'technician' || !!data.campusName, {
-    message: 'Campus name is required.',
-    path: ['campusName'],
 });
 
 
@@ -93,6 +114,7 @@ export default function RegisterPage() {
       name: "",
       email: "",
       password: "",
+      confirmPassword: "",
       userType: "student",
     },
   })
@@ -116,10 +138,9 @@ export default function RegisterPage() {
     console.log(values)
     toast({
       title: "Registration Successful",
-      description: "Redirecting to your dashboard...",
+      description: "You can now log in with your credentials.",
     })
-    // We would also set user context here before redirecting.
-    router.push("/dashboard")
+    router.push("/login")
   }
 
   return (
@@ -321,37 +342,19 @@ export default function RegisterPage() {
                 )}
               />
 
-              {(userType === "student" || userType === "campus_staff") && (
-                <FormField
-                  control={form.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Confirm Password</FormLabel>
-                      <FormControl>
-                        <Input type="password" placeholder="••••••••" {...field} value={field.value ?? ""} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-              
-              {(userType === "administrator" || userType === "technician") && (
-                  <FormField
-                    control={form.control}
-                    name="confirmPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Confirm Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="••••••••" {...field} value={field.value ?? ""} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="••••••••" {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )}
+              />
 
               {(userType === "student" || userType === "campus_staff" || userType === "administrator" || userType === "technician") && (
                 <FormField
