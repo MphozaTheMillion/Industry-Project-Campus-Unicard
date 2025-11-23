@@ -46,8 +46,7 @@ const prompt = ai.definePrompt({
 3.  **Eyes:** The person's eyes must be open and clearly visible.
 4.  **Accessories:** The person must not be wearing a hat, sunglasses, or regular glasses. Religious head coverings are acceptable as long as they do not obscure the face.
 5.  **Lighting:** The photo must be well-lit, with no shadows on the face or reflections in the background.
-6.  **Quality:** The photo must not be blurry or low-resolution.
-7.  **Subject:** The photo must clearly be of a single person.
+6.  **Subject:** The photo must clearly be of a single person.
 
 Analyze the following image and determine if it is valid. For each rule that is violated, provide a specific issue code and user-friendly feedback. If the photo is valid, return \`isValid: true\` and an empty issues array.
 
