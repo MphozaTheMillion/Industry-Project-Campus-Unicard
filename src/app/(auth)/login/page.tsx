@@ -7,7 +7,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Mail, KeyRound } from "lucide-react"
 import { signInWithEmailAndPassword, AuthError, signOut } from "firebase/auth"
-import { doc, getDoc, FirestoreError } from "firebase/firestore"
+import { doc, getDoc, updateDoc, serverTimestamp, FirestoreError } from "firebase/firestore"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -85,7 +85,12 @@ export default function LoginPage() {
         return;
       }
 
-      // 4. On success, redirect based on role
+      // 4. Update last login timestamp
+      await updateDoc(userProfileRef, {
+        lastLogin: serverTimestamp()
+      });
+
+      // 5. On success, redirect based on role
       toast({
         title: "Login Successful",
         description: "Redirecting...",

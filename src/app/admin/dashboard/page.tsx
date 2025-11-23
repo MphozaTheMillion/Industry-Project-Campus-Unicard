@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, getDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { useFirestore, useMemoFirebase } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import {
@@ -22,12 +22,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, UserX, CheckCircle, Ban } from "lucide-react";
+import { MoreHorizontal, UserX, CheckCircle, Ban, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
 
 type UserProfile = {
   id: string;
@@ -35,6 +45,7 @@ type UserProfile = {
   lastName: string;
   email: string;
   userType: string;
+  lastLogin?: { seconds: number; nanoseconds: number; } | Date | string;
   cardStatus?: 'active' | 'suspended' | 'revoked';
 };
 
@@ -118,6 +129,65 @@ export default function AdminDashboardPage() {
       });
     }
   };
+
+  const handleRemoveUser = async (userToRemove: UserProfile) => {
+    if (!firestore) return;
+
+    try {
+      const batch = writeBatch(firestore);
+
+      // 1. Delete user profile
+      const userProfileRef = doc(firestore, "userProfiles", userToRemove.id);
+      batch.delete(userProfileRef);
+
+      // 2. Delete email lock
+      const emailLockRef = doc(firestore, "emails", userToRemove.email);
+      batch.delete(emailLockRef);
+      
+      // 3. Delete digital card (if exists)
+      const cardDocRef = doc(firestore, 'userProfiles', userToRemove.id, 'digitalIdCards', 'main');
+      batch.delete(cardDocRef);
+
+      await batch.commit();
+
+      setUsers(prevUsers => prevUsers.filter(u => u.id !== userToRemove.id));
+
+      toast({
+        title: "User Removed",
+        description: `${userToRemove.firstName} ${userToRemove.lastName}'s data has been removed from the database.`,
+      });
+
+    } catch (error) {
+       console.error("Failed to remove user:", error);
+       toast({
+         variant: "destructive",
+         title: "Removal Failed",
+         description: "Could not remove the user's data. Please check permissions or try again.",
+       });
+    }
+  };
+  
+  const formatDate = (date: any) => {
+    if (!date) return 'N/A';
+    // Check if it's a Firebase Timestamp
+    if (date.seconds) {
+      return format(date.toDate(), 'PPp');
+    }
+    // Check if it's already a Date object
+    if (date instanceof Date) {
+      return format(date, 'PPp');
+    }
+    // Try to parse it as a string
+    try {
+      const parsedDate = new Date(date);
+      if (!isNaN(parsedDate.getTime())) {
+        return format(parsedDate, 'PPp');
+      }
+    } catch (e) {
+      // ignore
+    }
+    return 'Invalid Date';
+  }
   
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -130,68 +200,95 @@ export default function AdminDashboardPage() {
         </p>
       </div>
       <Card>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Full Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>User Type</TableHead>
-                <TableHead>Card Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center">Loading users...</TableCell>
+                  <TableHead>Full Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>User Type</TableHead>
+                  <TableHead>Card Status</TableHead>
+                  <TableHead>Last Login</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ) : users.length > 0 ? (
-                users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell className="capitalize">{user.userType.replace('_', ' ')}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={user.cardStatus} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem
-                            onClick={() => handleUpdateStatus(user.id, 'suspended')}
-                            disabled={user.cardStatus === 'suspended' || !user.cardStatus}
-                          >
-                            <Ban className="mr-2 h-4 w-4" />
-                            Suspend Card
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleUpdateStatus(user.id, 'revoked')}
-                            disabled={user.cardStatus === 'revoked' || !user.cardStatus}
-                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                          >
-                            <UserX className="mr-2 h-4 w-4" />
-                            Revoke Card
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center">Loading users...</TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center">No users found.</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                ) : users.length > 0 ? (
+                  users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium whitespace-nowrap">{user.firstName} {user.lastName}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell className="capitalize whitespace-nowrap">{user.userType.replace('_', ' ')}</TableCell>
+                      <TableCell>
+                        <StatusBadge status={user.cardStatus} />
+                      </TableCell>
+                       <TableCell className="whitespace-nowrap">{formatDate(user.lastLogin)}</TableCell>
+                      <TableCell className="text-right">
+                         <AlertDialog>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <span className="sr-only">Open menu</span>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem
+                                  onClick={() => handleUpdateStatus(user.id, 'suspended')}
+                                  disabled={user.cardStatus === 'suspended' || !user.cardStatus}
+                                >
+                                  <Ban className="mr-2 h-4 w-4" />
+                                  Suspend Card
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleUpdateStatus(user.id, 'revoked')}
+                                  disabled={user.cardStatus === 'revoked' || !user.cardStatus}
+                                >
+                                  <UserX className="mr-2 h-4 w-4" />
+                                  Revoke Card
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                 <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Remove User
+                                    </DropdownMenuItem>
+                                 </AlertDialogTrigger>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                             <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete the user's
+                                    data from the database, but it will <span className="font-semibold">not</span> delete their login credentials.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleRemoveUser(user)} className="bg-destructive hover:bg-destructive/90">
+                                    Continue
+                                </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                         </AlertDialog>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center">No users found.</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

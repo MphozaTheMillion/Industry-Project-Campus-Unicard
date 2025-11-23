@@ -162,6 +162,7 @@ export default function RegisterPage() {
         lastName: lastName,
         email: values.email,
         registrationDate: serverTimestamp(),
+        lastLogin: serverTimestamp(),
         profilePicture: "", // Initially empty
         userType: values.userType,
         studentNumber: values.studentNumber || null,

@@ -29,6 +29,11 @@
           "description": "Date and time when the user registered.",
           "format": "date-time"
         },
+        "lastLogin": {
+            "type": "string",
+            "description": "Date and time when the user last logged in.",
+            "format": "date-time"
+        },
         "profilePicture": {
           "type": "string",
           "description": "Reference to the user's profile picture.",
@@ -45,6 +50,7 @@
         "lastName",
         "email",
         "registrationDate",
+        "lastLogin",
         "profilePicture",
         "userType"
       ]

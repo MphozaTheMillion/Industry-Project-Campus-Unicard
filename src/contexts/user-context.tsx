@@ -15,6 +15,7 @@ interface User {
   photo: string | null;
   cardGenerated: boolean;
   cardIssueDate: Date | null;
+  lastLogin: Date | null;
   studentNumber?: string;
   courseCode?: string;
   campusName?: string;
@@ -72,6 +73,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           const issueDate = cardData?.cardIssueDate instanceof Timestamp 
             ? cardData.cardIssueDate.toDate() 
             : null;
+          
+          const lastLoginDate = userData?.lastLogin instanceof Timestamp
+            ? userData.lastLogin.toDate()
+            : null;
 
           setUser({
             uid: authUser.uid,
@@ -81,6 +86,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             photo: userData.profilePicture || null,
             cardGenerated: !!userData.profilePicture,
             cardIssueDate: issueDate,
+            lastLogin: lastLoginDate,
             studentNumber: userData.studentNumber,
             courseCode: userData.courseCode,
             campusName: userData.campusName,
