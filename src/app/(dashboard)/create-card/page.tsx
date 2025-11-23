@@ -16,7 +16,7 @@ import { IdCard } from '@/components/id-card';
 import { useUser } from '@/contexts/user-context';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -27,7 +27,6 @@ const validationRules = [
   { text: 'Look at the camera with a neutral expression', icon: <Smile className="h-5 w-5 text-green-500" /> },
   { text: 'Eyes are open and clearly visible', icon: <Eye className="h-5 w-5 text-green-500" /> },
   { text: 'No hats or glasses', icon: <Glasses className="h-5 w-5 text-red-500" /> },
-  { text: 'No shadows or reflections', icon: <VenetianMask className="h-5 w-5 text-red-500" /> },
 ];
 
 
@@ -36,7 +35,7 @@ export default function CreateCardPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidatePhotoOutput | null>(null);
-  const { user, loading, setPhoto, setCardGenerated } = useUser();
+  const { user, loading, setPhoto, setCardData } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
@@ -49,11 +48,6 @@ export default function CreateCardPage() {
     try {
       const result = await validatePhoto({ photoDataUri: imageSrc });
       setValidationResult(result);
-      if (result.isValid) {
-        // We will update the user context photo only for the preview on this page.
-        // This no longer affects the main header avatar.
-        // The real update happens on save.
-      }
     } catch (error) {
       console.error('Validation failed:', error);
       toast({
@@ -62,7 +56,7 @@ export default function CreateCardPage() {
         description: 'Could not validate the photo. Please try again.',
       });
       // Treat as invalid if the validation service fails
-      setValidationResult({ isValid: false, issues: [{ code: 'LOW_QUALITY', feedback: 'An unexpected error occurred during validation.' }] });
+      setValidationResult({ isValid: false, issues: [{ code: 'NOT_A_PERSON', feedback: 'An unexpected error occurred during validation.' }] });
     } finally {
       setIsValidating(false);
     }
@@ -78,14 +72,35 @@ export default function CreateCardPage() {
 
     setIsSaving(true);
     try {
+      const batch = writeBatch(firestore);
       const userDocRef = doc(firestore, 'userProfiles', user.uid);
-      await updateDoc(userDocRef, {
+      const cardDocRef = doc(firestore, 'userProfiles', user.uid, 'digitalIdCards', 'main');
+
+      const cardIssueDate = new Date();
+      const cardExpiryDate = new Date(cardIssueDate.getFullYear() + 1, cardIssueDate.getMonth(), cardIssueDate.getDate());
+
+      // 1. Update user profile with the new photo
+      batch.update(userDocRef, {
         profilePicture: capturedImage,
       });
 
+      // 2. Create or update the digital ID card document with issue/expiry dates
+      batch.set(cardDocRef, {
+        id: 'main',
+        userProfileId: user.uid,
+        cardIssueDate: serverTimestamp(),
+        cardExpiryDate: cardExpiryDate,
+        cardStatus: 'active',
+      }, { merge: true });
+
+      await batch.commit();
+
       // Explicitly update the context after successful save
-      setPhoto(capturedImage);
-      setCardGenerated(true);
+      setCardData({
+        photo: capturedImage,
+        cardGenerated: true,
+        cardIssueDate: cardIssueDate,
+      });
 
       toast({
         title: 'Success!',
@@ -93,11 +108,11 @@ export default function CreateCardPage() {
       });
       router.push('/dashboard');
     } catch (error) {
-      console.error('Error saving photo:', error);
+      console.error('Error saving card:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to save your photo. Please try again.',
+        description: 'Failed to save your card. Please try again.',
       });
     } finally {
       setIsSaving(false);
@@ -105,6 +120,20 @@ export default function CreateCardPage() {
   };
   
   const isSaveDisabled = isSaving || isValidating || !validationResult?.isValid;
+
+  if (loading) {
+    return null;
+  }
+
+  // Redirect if card is already generated and not expired
+  if (user?.cardGenerated) {
+    const now = new Date();
+    const expiryDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 365);
+     if (user.cardIssueDate && user.cardIssueDate > expiryDate) {
+        router.replace('/dashboard');
+        return null;
+    }
+  }
 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
