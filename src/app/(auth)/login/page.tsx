@@ -35,10 +35,13 @@ export default function LoginPage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      role: "student",
       email: "",
       password: "",
     },
   })
+
+  const role = form.watch("role")
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     // In a real app, you'd handle authentication here.
@@ -108,7 +111,15 @@ export default function LoginPage() {
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                     <FormControl>
-                      <Input placeholder="studentnumber@tut4life.ac.za" {...field} className="pl-10" />
+                      <Input 
+                        placeholder={
+                          role === "student" 
+                          ? "studentnumber@tut4life.ac.za" 
+                          : "name@outlook.com"
+                        } 
+                        {...field} 
+                        className="pl-10" 
+                      />
                     </FormControl>
                   </div>
                   <FormMessage />
