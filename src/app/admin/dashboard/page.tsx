@@ -3,8 +3,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { collection, getDocs, doc, updateDoc, getDoc, deleteDoc, writeBatch } from 'firebase/firestore';
-import { useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { useCollection } from '@/firebase/firestore/use-collection';
+import { useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 import {
   Table,
   TableBody,
@@ -67,23 +66,17 @@ export default function AdminDashboardPage() {
   const { toast } = useToast();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const profilesCollection = useMemoFirebase(() => {
-    if (!firestore || !adminUser) return null;
-    return collection(firestore, 'userProfiles');
-  }, [firestore, adminUser]);
-
-  const { data: userProfiles, isLoading: profilesLoading, error } = useCollection<UserProfile>(profilesCollection);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (isAdminLoading || !firestore) return;
-    if (!adminUser) {
+    if (isAdminLoading || !firestore || !adminUser) {
         setLoading(false);
         return;
     }
 
     const fetchAllUsersWithStatus = async () => {
       setLoading(true);
+      setError(null);
       try {
         const profileDocs = await getDocs(collection(firestore, 'userProfiles'));
         const profiles = profileDocs.docs.map(doc => ({ id: doc.id, ...doc.data() })) as UserProfile[];
@@ -97,6 +90,7 @@ export default function AdminDashboardPage() {
                 return { ...user, cardStatus: cardDocSnap.data().cardStatus };
               }
             } catch (e) {
+              // This is a nested error, we can log it but won't block the main user list
               console.error(`Failed to fetch card for user ${user.id}`, e);
             }
             return user;
@@ -104,53 +98,47 @@ export default function AdminDashboardPage() {
         );
         setUsers(usersWithStatus);
       } catch (serverError: any) {
-         if (serverError.code === 'permission-denied') {
-            const permissionError = new FirestorePermissionError({
-                path: 'userProfiles',
-                operation: 'list',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-         }
-         console.error("Failed to fetch users:", serverError);
-         toast({
-            variant: "destructive",
-            title: "Error Fetching Users",
-            description: "You do not have permission to view the user list.",
-        });
+         const permissionError = new FirestorePermissionError({
+             path: 'userProfiles',
+             operation: 'list',
+         });
+         errorEmitter.emit('permission-error', permissionError);
+         setError(permissionError); // Set local error state for UI feedback
       } finally {
         setLoading(false);
       }
     };
 
     fetchAllUsersWithStatus();
-  }, [adminUser, isAdminLoading, firestore, toast]);
+  }, [adminUser, isAdminLoading, firestore]);
 
   const handleUpdateStatus = async (userId: string, status: 'suspended' | 'revoked') => {
     if (!firestore) return;
     const cardDocRef = doc(firestore, 'userProfiles', userId, 'digitalIdCards', 'main');
-    try {
-      await updateDoc(cardDocRef, { cardStatus: status });
-      setUsers(prevUsers =>
-        prevUsers.map(u => (u.id === userId ? { ...u, cardStatus: status } : u))
-      );
-      toast({
-        title: "Status Updated",
-        description: `User's card has been ${status}.`,
+    
+    updateDoc(cardDocRef, { cardStatus: status })
+      .then(() => {
+        setUsers(prevUsers =>
+          prevUsers.map(u => (u.id === userId ? { ...u, cardStatus: status } : u))
+        );
+        toast({
+          title: "Status Updated",
+          description: `User's card has been ${status}.`,
+        });
+      })
+      .catch(error => {
+        const permissionError = new FirestorePermissionError({
+          path: cardDocRef.path,
+          operation: 'update',
+          requestResourceData: { cardStatus: status },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({
+          variant: "destructive",
+          title: "Update Failed",
+          description: "Could not update the user's card status. Check permissions.",
+        });
       });
-    } catch (error) {
-      console.error("Failed to update status:", error);
-      const permissionError = new FirestorePermissionError({
-        path: cardDocRef.path,
-        operation: 'update',
-        requestResourceData: { cardStatus: status },
-      });
-      errorEmitter.emit('permission-error', permissionError);
-      toast({
-        variant: "destructive",
-        title: "Update Failed",
-        description: "Could not update the user's card status. Check permissions.",
-      });
-    }
   };
 
   const handleRemoveUser = async (userToRemove: UserProfile) => {
@@ -166,6 +154,7 @@ export default function AdminDashboardPage() {
       batch.delete(emailLockRef);
       
       const cardDocRef = doc(firestore, 'userProfiles', userToRemove.id, 'digitalIdCards', 'main');
+      // It's okay if the card doesn't exist, so we don't need to check. A delete on a non-existent doc is a no-op.
       batch.delete(cardDocRef);
 
       await batch.commit();
@@ -178,7 +167,6 @@ export default function AdminDashboardPage() {
       });
 
     } catch (error) {
-       console.error("Failed to remove user:", error);
        const permissionError = new FirestorePermissionError({
          path: `userProfiles/${userToRemove.id}`, 
          operation: 'delete',
@@ -194,12 +182,15 @@ export default function AdminDashboardPage() {
   
   const formatDate = (date: any) => {
     if (!date) return 'N/A';
+    // Check if it's a Firestore Timestamp
     if (date.seconds) {
-      return format(date.toDate(), 'PPp');
+      // Compatibility with both Firebase v8 (toDate) and v9 (no direct toDate on plain object)
+      return format(new Date(date.seconds * 1000), 'PPp');
     }
     if (date instanceof Date) {
       return format(date, 'PPp');
     }
+    // Try parsing if it's a string
     try {
       const parsedDate = new Date(date);
       if (!isNaN(parsedDate.getTime())) {
@@ -316,5 +307,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-
-    
