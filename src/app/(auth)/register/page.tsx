@@ -168,7 +168,19 @@ export default function RegisterPage() {
                       </FormItem>
                     )}
                   />
-                  
+                  <FormField
+                    control={form.control}
+                    name="courseCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Course Code</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. COS101" {...field} value={field.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </>
               )}
 
@@ -209,19 +221,6 @@ export default function RegisterPage() {
                         <FormLabel>Confirm Password</FormLabel>
                         <FormControl>
                           <Input type="password" placeholder="••••••••" {...field} value={field.value ?? ""} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="courseCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Course Code</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g. COS101" {...field} value={field.value ?? ""} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
