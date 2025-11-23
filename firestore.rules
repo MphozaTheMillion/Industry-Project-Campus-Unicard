@@ -17,6 +17,7 @@
  * Key Security Decisions:
  * - Strict Ownership for Users: Regular users can only access their own data.
  * - Admin Privileges: Administrators can read all user profiles and can update card statuses.
+ *   Write operations for admins rely on custom claims to avoid disallowed get() calls.
  * - No User Enumeration (for non-admins): Listing documents in top-level collections
  *   is disallowed for regular users to protect privacy.
  * - Email Uniqueness: The /emails collection ensures an email can only be registered once.
@@ -41,11 +42,12 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      // Use custom claims for write operations to avoid disallowed get() calls.
-      // For read operations, get() is allowed and can be used as a fallback.
+      // For read operations, get() is allowed and can be used to check the user's profile.
+      // For write operations, we MUST rely on custom claims because get() on another document is disallowed.
+      // This hybrid approach ensures security for both scenarios.
       return isSignedIn() && (
-        request.auth.token.userType == 'administrator' || 
-        get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userType == 'administrator'
+        (request.method in ['get', 'list'] && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userType == 'administrator') ||
+        (request.method in ['create', 'update', 'delete'] && request.auth.token.userType == 'administrator')
       );
     }
 
@@ -56,11 +58,6 @@ service cloud.firestore {
     
     function isNotChangingDigitalIdCardKeys() {
         return request.resource.data.userProfileId == resource.data.userProfileId;
-    }
-
-    function isUpdatingOwnCardStatus(userProfileId) {
-      // Prevents a user from updating their own card status if they are not an admin.
-      return isOwner(userProfileId) && request.resource.data.keys().hasOnly(['cardStatus']) == false;
     }
 
     // Rules for the /userProfiles collection
