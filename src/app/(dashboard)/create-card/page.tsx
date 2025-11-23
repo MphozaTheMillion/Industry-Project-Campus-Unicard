@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Camera, ArrowLeft, User, Smile, Eye, Glasses, VenetianMask } from 'lucide-react';
+import { Camera, ArrowLeft, User, Smile, Eye, Glasses, VenetianMask, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -19,6 +19,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { validatePhoto, type ValidatePhotoOutput } from '@/ai/flows/validate-photo-flow';
 
 const validationRules = [
   { text: 'Photo is from the neck up', icon: <User className="h-5 w-5 text-green-500" /> },
@@ -32,18 +33,44 @@ const validationRules = [
 export default function CreateCardPage() {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationResult, setValidationResult] = useState<ValidatePhotoOutput | null>(null);
   const { user, setPhoto, setCardGenerated } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
 
-  const handlePhotoCapture = (imageSrc: string) => {
-    setPhoto(imageSrc);
-    setCapturedImage(imageSrc);
+  const handlePhotoCapture = async (imageSrc: string) => {
+    setCapturedImage(imageSrc); // Show the captured image immediately
+    setIsValidating(true);
+    setValidationResult(null); // Clear previous results
+
+    try {
+      const result = await validatePhoto({ photoDataUri: imageSrc });
+      setValidationResult(result);
+      if (result.isValid) {
+        setPhoto(imageSrc);
+      } else {
+        setPhoto(null); // Invalidate photo in context if it's bad
+      }
+    } catch (error) {
+      console.error('Validation failed:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Validation Error',
+        description: 'Could not validate the photo. Please try again.',
+      });
+      // Treat as invalid if the validation service fails
+      setValidationResult({ isValid: false, issues: [{ code: 'LOW_QUALITY', feedback: 'An unexpected error occurred during validation.' }] });
+      setPhoto(null);
+    } finally {
+      setIsValidating(false);
+    }
   };
 
   const handleRetake = () => {
     setCapturedImage(null);
+    setValidationResult(null);
     setPhoto(null);
   };
 
@@ -75,6 +102,8 @@ export default function CreateCardPage() {
       setIsSaving(false);
     }
   };
+  
+  const isSaveDisabled = isSaving || isValidating || !validationResult?.isValid;
 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -98,17 +127,42 @@ export default function CreateCardPage() {
             <CardContent>
               {capturedImage ? (
                  <div className="space-y-4">
-                  <Image
-                    src={capturedImage}
-                    alt="Captured profile"
-                    width={1280}
-                    height={720}
-                    className="rounded-lg border"
-                  />
+                  <div className="relative">
+                    <Image
+                      src={capturedImage}
+                      alt="Captured profile"
+                      width={1280}
+                      height={720}
+                      className="rounded-lg border"
+                    />
+                    {isValidating && (
+                      <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center rounded-lg">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <p className="mt-2 text-muted-foreground">Validating photo...</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {validationResult && !validationResult.isValid && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Photo Rejected</AlertTitle>
+                      <AlertDescription>
+                        <ul className="list-disc pl-5 space-y-1">
+                          {validationResult.issues.map((issue) => (
+                            <li key={issue.code}>{issue.feedback}</li>
+                          ))}
+                        </ul>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
                   <div className="grid grid-cols-2 gap-4">
-                    <Button variant="outline" onClick={handleRetake}>Retake Photo</Button>
-                    <Button onClick={handleSave} disabled={isSaving}>
-                      {isSaving ? 'Saving...' : 'Save & Generate Card'}
+                    <Button variant="outline" onClick={handleRetake} disabled={isSaving || isValidating}>
+                      Retake Photo
+                    </Button>
+                    <Button onClick={handleSave} disabled={isSaveDisabled}>
+                       {isSaving ? 'Saving...' : 'Save & Generate Card'}
                     </Button>
                   </div>
                 </div>
