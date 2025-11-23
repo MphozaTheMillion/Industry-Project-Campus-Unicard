@@ -1,114 +1,84 @@
 "use client"
 
-import { useState } from 'react';
-import { Camera, CheckCircle, RefreshCw } from 'lucide-react';
-
+import Link from 'next/link';
+import { CreditCard, Eye, LogIn } from 'lucide-react';
 import { useUser } from '@/contexts/user-context';
-import { IdCard } from '@/components/id-card';
-import { CameraCapture } from '@/components/camera-capture';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-
-type CreationStep = 'capture' | 'preview' | 'generated';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function DashboardPage() {
-  const { user, setPhoto, setCardGenerated } = useUser();
-  const [step, setStep] = useState<CreationStep>(user.cardGenerated ? 'generated' : 'capture');
-  const [capturedImage, setCapturedImage] = useState<string | null>(user.photo);
-
-  const handleCapture = (imageSrc: string) => {
-    setCapturedImage(imageSrc);
-    setStep('preview');
-  };
-
-  const handleRetake = () => {
-    setCapturedImage(null);
-    setStep('capture');
-  };
-
-  const handleGenerateCard = () => {
-    if (capturedImage) {
-      setPhoto(capturedImage);
-      setCardGenerated(true);
-      setStep('generated');
-    }
-  };
-
-  const renderContent = () => {
-    if (step === 'generated' || user.cardGenerated) {
-      return (
-        <div className="flex flex-col items-center gap-8">
-            <div className="text-center">
-                <h1 className="text-3xl font-bold font-headline text-primary">Your Digital ID Card</h1>
-                <p className="text-muted-foreground mt-2">Here is your official digital ID. You can now use it to access campus services.</p>
-            </div>
-            <IdCard />
-        </div>
-      );
-    }
-    
+  const { user, loading } = useUser();
+  
+  if (loading) {
     return (
-        <Card className="w-full max-w-2xl mx-auto">
-            <CardHeader>
-                <CardTitle className="text-2xl font-headline">Create Your Digital ID</CardTitle>
-                <CardDescription>Follow the steps below to generate your secure digital ID card.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="space-y-8">
-                    {/* Step 1: Capture Photo */}
-                    <div>
-                        <div className="flex items-center gap-4">
-                            <div className={`flex items-center justify-center h-10 w-10 rounded-full ${step === 'capture' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                                <Camera className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <h3 className="font-semibold">Step 1: Take Your Photo</h3>
-                                <p className="text-sm text-muted-foreground">
-                                    {step !== 'capture' ? "Photo captured successfully." : "Position your face in the center of the frame."}
-                                </p>
-                            </div>
-                            {step !== 'capture' && <CheckCircle className="h-5 w-5 text-green-500 ml-auto" />}
-                        </div>
-                        {step === 'capture' && (
-                            <div className="pl-14 pt-4">
-                                <CameraCapture onCapture={handleCapture} />
-                            </div>
-                        )}
-                    </div>
-                    {/* Step 2: Preview & Generate */}
-                    {step === 'preview' && (
-                        <div>
-                            <div className="flex items-center gap-4">
-                                <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary text-primary-foreground">
-                                    <CheckCircle className="h-5 w-5" />
-                                </div>
-                                <h3 className="font-semibold">Step 2: Preview and Generate</h3>
-                            </div>
-                            <div className="pl-14 pt-4 space-y-4">
-                                <p className="text-sm text-muted-foreground">
-                                    Looks great! If you're happy with your photo, generate your ID card.
-                                </p>
-                                {capturedImage && (
-                                    <img src={capturedImage} alt="Captured photo" className="rounded-lg border shadow-sm w-full max-w-xs mx-auto" />
-                                )}
-                                <div className="flex justify-center gap-4">
-                                    <Button variant="outline" onClick={handleRetake}>
-                                        <RefreshCw className="mr-2 h-4 w-4" /> Retake
-                                    </Button>
-                                    <Button onClick={handleGenerateCard}>Generate ID Card</Button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </CardContent>
-        </Card>
+        <div className="space-y-4">
+            <Skeleton className="h-8 w-1/3" />
+            <Skeleton className="h-6 w-1/2" />
+            <div className="grid md:grid-cols-2 gap-6">
+                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-48 w-full" />
+            </div>
+        </div>
     );
-  };
+  }
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center text-center h-full">
+        <h1 className="text-2xl font-bold mb-2">You are not logged in</h1>
+        <p className="text-muted-foreground mb-4">Please log in to access your dashboard.</p>
+        <Button asChild>
+          <Link href="/login"><LogIn className="mr-2 h-4 w-4" /> Login</Link>
+        </Button>
+      </div>
+    )
+  }
+
+  // Fallback for unexpected user types, though the login logic should prevent this.
+  if (user.userType !== 'student' && user.userType !== 'campus_staff') {
+    return (
+        <div className="text-center">
+            <h1 className="text-3xl font-bold font-headline">Welcome, {user.name}</h1>
+            <p className="text-muted-foreground mt-2">Your dashboard is under construction.</p>
+        </div>
+    )
+  }
 
   return (
-    <div>
-      {renderContent()}
+    <div className="space-y-6">
+        <div className="space-y-1">
+            <h1 className="text-3xl md:text-4xl font-bold font-headline">Welcome, {user.name}</h1>
+            <p className="text-muted-foreground md:text-lg">Manage your digital ID and access campus services.</p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+            <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                    <CreditCard className="h-8 w-8 text-primary mb-2" />
+                    <CardTitle>Create Digital Card</CardTitle>
+                    <CardDescription>Generate your new secure digital ID card by taking a photo.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Button asChild className="w-full">
+                        <Link href="/dashboard/create-card">Create Your Card</Link>
+                    </Button>
+                </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                    <Eye className="h-8 w-8 text-accent mb-2" />
+                    <CardTitle>View Digital Card</CardTitle>
+                    <CardDescription>Display your existing digital ID card for verification and access.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Button asChild className="w-full" variant="secondary">
+                        <Link href="/dashboard/view-card">View Your Card</Link>
+                    </Button>
+                </CardContent>
+            </Card>
+        </div>
     </div>
   );
 }

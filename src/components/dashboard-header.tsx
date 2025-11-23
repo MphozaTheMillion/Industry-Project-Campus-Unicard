@@ -3,8 +3,10 @@
 import { LogOut, User as UserIcon } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { signOut } from "firebase/auth"
 
 import { useUser } from "@/contexts/user-context"
+import { useAuth } from "@/firebase"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,18 +18,43 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Logo } from "@/components/logo"
+import { Skeleton } from "./ui/skeleton"
 
 export function DashboardHeader() {
-  const { user, logout } = useUser();
+  const { user, loading } = useUser();
+  const auth = useAuth();
   const router = useRouter();
 
-  const handleLogout = () => {
-    logout();
-    router.push('/');
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push('/login');
   }
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  }
+
+  if (loading) {
+    return (
+      <header className="bg-card border-b">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+          <Logo />
+          <Skeleton className="h-10 w-10 rounded-full" />
+        </div>
+      </header>
+    )
+  }
+
+  if (!user) {
+     // Or redirect, or show nothing
+    return (
+        <header className="bg-card border-b">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+          <Logo />
+          <Button asChild><Link href="/login">Login</Link></Button>
+        </div>
+      </header>
+    )
   }
 
   return (
@@ -51,6 +78,9 @@ export function DashboardHeader() {
                 <p className="text-sm font-medium leading-none">{user.name}</p>
                 <p className="text-xs leading-none text-muted-foreground">
                   {user.email}
+                </p>
+                <p className="text-xs leading-none text-muted-foreground capitalize pt-1">
+                  {user.userType?.replace('_', ' ')}
                 </p>
               </div>
             </DropdownMenuLabel>

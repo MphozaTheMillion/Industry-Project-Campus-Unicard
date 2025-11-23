@@ -1,58 +1,90 @@
 "use client"
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useAuth } from '@/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { useFirestore } from '@/firebase'; // Added import
 
-type UserType = "student" | "staff";
+type UserType = "student" | "campus_staff" | "administrator" | "technician";
 
 interface User {
+  uid: string | null;
   name: string;
   email: string;
-  userType: UserType;
+  userType: UserType | null;
   photo: string | null;
   cardGenerated: boolean;
 }
 
 interface UserContextType {
-  user: User;
-  setUser: React.Dispatch<React.SetStateAction<User>>;
-  login: (name: string, email: string, userType: UserType) => void;
+  user: User | null;
+  loading: boolean;
   logout: () => void;
   setPhoto: (photo: string) => void;
   setCardGenerated: (generated: boolean) => void;
 }
 
-const defaultUser: User = {
-    name: 'Jane Doe',
-    email: 'jane.doe@university.edu',
-    userType: 'student',
-    photo: null,
-    cardGenerated: false,
-};
-
-
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User>(defaultUser);
+  const { user: authUser, isUserLoading: isAuthLoading } = useAuth();
+  const firestore = useFirestore();
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = (name: string, email: string, userType: UserType) => {
-    setUser({ name, email, userType, photo: null, cardGenerated: false });
-  };
+  useEffect(() => {
+    const syncUser = async () => {
+      if (isAuthLoading) {
+        setLoading(true);
+        return;
+      }
+      if (!authUser) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
 
+      setLoading(true);
+      const userDocRef = doc(firestore, 'userProfiles', authUser.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        setUser({
+          uid: authUser.uid,
+          name: `${userData.firstName} ${userData.lastName}`,
+          email: userData.email,
+          userType: userData.userType,
+          photo: userData.profilePicture || null, // Assuming this field exists
+          cardGenerated: false, // You might want to store this in Firestore as well
+        });
+      } else {
+        // Handle case where user exists in Auth but not Firestore
+        setUser(null);
+      }
+      setLoading(false);
+    };
+
+    syncUser();
+  }, [authUser, firestore, isAuthLoading]);
+  
   const logout = () => {
-    setUser(defaultUser);
+    // Firebase auth logout is handled by the header button.
+    // This context will automatically update when authUser changes.
+    setUser(null);
   };
 
   const setPhoto = (photo: string) => {
-    setUser(prev => ({ ...prev, photo }));
+    setUser(prev => (prev ? { ...prev, photo } : null));
+     // Here you would also update the user's profilePicture in Firestore
   };
   
   const setCardGenerated = (generated: boolean) => {
-    setUser(prev => ({ ...prev, cardGenerated: generated }));
+    setUser(prev => (prev ? { ...prev, cardGenerated: generated } : null));
   }
 
   return (
-    <UserContext.Provider value={{ user, setUser, login, logout, setPhoto, setCardGenerated }}>
+    <UserContext.Provider value={{ user, loading, logout, setPhoto, setCardGenerated }}>
       {children}
     </UserContext.Provider>
   );
