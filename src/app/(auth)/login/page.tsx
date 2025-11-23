@@ -85,12 +85,17 @@ export default function LoginPage() {
         return;
       }
 
-      // 4. On success, redirect
+      // 4. On success, redirect based on role
       toast({
         title: "Login Successful",
-        description: "Redirecting to your dashboard...",
-      })
-      router.push("/dashboard")
+        description: "Redirecting...",
+      });
+      
+      if (values.role === 'administrator') {
+        router.push('/admin/dashboard');
+      } else {
+        router.push("/dashboard");
+      }
 
     } catch (error) {
       if ((error as AuthError)?.code === 'auth/user-not-found' || (error as AuthError)?.code === 'auth/wrong-password' || (error as AuthError)?.code === 'auth/invalid-credential') {

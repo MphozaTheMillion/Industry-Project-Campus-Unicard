@@ -75,7 +75,7 @@
         },
         "cardStatus": {
           "type": "string",
-          "description": "Status of the card, e.g., 'active', 'inactive', 'blocked'."
+          "description": "Status of the card, e.g., 'active', 'suspended', 'revoked'."
         }
       },
       "required": [

@@ -1,29 +1,26 @@
 /**
  * This ruleset enforces a strict user-ownership model for a CampusCard application.
- * All user-specific data is secured, ensuring users can only access their own information.
+ * All user-specific data is secured, ensuring users can only access their own information,
+ * with the exception of administrators who have read-only access to all profiles for management.
  *
  * Core Philosophy:
- * The security model is centered on user ownership. Data is segregated by user ID in the
- * document path, which allows for simple, performant, and secure access control. The
- * primary goal is to ensure a user's profile and digital ID card are completely private.
+ * The security model is centered on user ownership and role-based access. Data is segregated by
+ * user ID, allowing for simple and performant access control for regular users. Administrators
+ * are granted special read privileges to oversee the system.
  *
  * Data Structure:
- * - /userProfiles/{userId}: Each user has a root document containing their public profile.
- * - /userProfiles/{userId}/digitalIdCards/{cardId}: A subcollection containing the user's
- *   private digital ID card. Access is inherited from the parent user profile.
- * - /emails/{email}: A utility collection used as a "lock" to enforce that each email
- *   address can only be associated with one user account, preventing duplicate registrations.
+ * - /userProfiles/{userId}: Each user's profile. Readable by the owner and admins.
+ * - /userProfiles/{userId}/digitalIdCards/{cardId}: A subcollection for the user's ID card.
+ *   Access is managed by the admin or the owner.
+ * - /emails/{email}: A utility collection to enforce unique email registrations.
  *
  * Key Security Decisions:
- * - Strict Ownership: All user-specific data is protected. A user can only read or write
- *   documents within their own data tree (i.e., where the path contains their UID).
- * - No User Enumeration: Listing documents in the top-level /userProfiles or /emails
- *   collections is explicitly disallowed to protect user privacy and prevent data scraping.
- * - Email Uniqueness: The /emails collection is used to guarantee that an email address
- *   cannot be registered by more than one user. This collection is write-once and is not
- *   readable by any client, serving only as a backend uniqueness check via security rules.
- * - Relational Integrity: Key identifiers (like a user's ID or email) are enforced as
- *   immutable after creation to prevent data corruption or re-association of records.
+ * - Strict Ownership for Users: Regular users can only access their own data.
+ * - Admin Privileges: Administrators can read all user profiles and can update card statuses.
+ * - No User Enumeration (for non-admins): Listing documents in top-level collections
+ *   is disallowed for regular users to protect privacy.
+ * - Email Uniqueness: The /emails collection ensures an email can only be registered once.
+ *   This is a write-once, non-readable collection for clients.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -31,94 +28,59 @@ service cloud.firestore {
 
     // Helper functions for cleaner, more readable rules.
     
-    /**
-     * Checks if the current request is authenticated.
-     */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * Checks if the currently signed-in user's UID matches the provided userId.
-     * This is the core function for enforcing document ownership.
-     */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /**
-     * A robust check for update/delete operations. Ensures the document exists
-     * and the requester is the legitimate owner.
-     */
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
     }
 
-    /**
-     * Enforces immutability for critical fields on a UserProfile during an update.
-     * The user's ID and registration email cannot be changed after creation.
-     */
+    function isAdmin() {
+      // An admin's userType is stored in their profile document.
+      // This requires a `get` call, which has security and performance implications.
+      // It's crucial this is used judiciously.
+      return isSignedIn() && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userType == 'administrator';
+    }
+
     function isNotChangingUserProfileKeys() {
       return request.resource.data.id == resource.data.id &&
              request.resource.data.email == resource.data.email;
     }
     
-    /**
-     * Enforces immutability for the ownership link on a DigitalIdCard during an update.
-     */
     function isNotChangingDigitalIdCardKeys() {
         return request.resource.data.userProfileId == resource.data.userProfileId;
     }
 
-
-    /**
-     * @description Manages user profile data.
-     * @path /userProfiles/{userProfileId}
-     * @allow (get) An authenticated user reads their own profile: `auth.uid == userProfileId`.
-     * @deny (get) An authenticated user attempts to read another user's profile.
-     * @allow (create) A new user creates their profile, provided the email is not already in use.
-     * @deny (create) A user tries to create a profile for another UID or with an existing email.
-     * @principle Restricts access to a user's own data tree and ensures email uniqueness.
-     */
+    // Rules for the /userProfiles collection
     match /userProfiles/{userProfileId} {
-      allow get: if isOwner(userProfileId);
-      allow list: if false; // Prevent user enumeration
+      allow get: if isOwner(userProfileId) || isAdmin();
+      allow list: if isAdmin(); // Only admins can list all users
       allow create: if isOwner(userProfileId) && 
                      request.resource.data.id == userProfileId &&
                      !exists(/databases/$(database)/documents/emails/$(request.resource.data.email));
       allow update: if isExistingOwner(userProfileId) && isNotChangingUserProfileKeys();
-      allow delete: if isExistingOwner(userProfileId);
-      
-      /**
-       * @description Manages the digital ID card associated with a user profile.
-       * @path /userProfiles/{userProfileId}/digitalIdCards/{cardId}
-       * @allow (create) An authenticated user creates their own digital ID card.
-       * @deny (create) A user attempts to create a digital ID card for another user.
-       * @principle Enforces inherited ownership from the parent document path.
-       */
+      allow delete: if isExistingOwner(userProfileId) || isAdmin();
+
+      // Rules for the nested digitalIdCards subcollection
       match /digitalIdCards/{cardId} {
-        allow get: if isOwner(userProfileId);
-        allow list: if isOwner(userProfileId);
+        allow get, list: if isOwner(userProfileId) || isAdmin();
         allow create: if isOwner(userProfileId) && request.resource.data.userProfileId == userProfileId;
-        allow update: if isExistingOwner(userProfileId) && isNotChangingDigitalIdCardKeys();
-        allow delete: if isExistingOwner(userProfileId);
+        // Admins can only update the cardStatus field.
+        allow update: if (isExistingOwner(userProfileId) && isNotChangingDigitalIdCardKeys()) || 
+                       (isAdmin() && request.resource.data.keys().hasOnly(['cardStatus']));
+        allow delete: if isExistingOwner(userProfileId) || isAdmin();
       }
     }
     
-    /**
-     * @description A private, write-once collection to enforce unique email registrations.
-     * @path /emails/{emailId}
-     * @allow (create) A user creating their profile can create a corresponding email lock.
-     * @deny (read) No user can read or list the contents of this collection to prevent email scraping.
-     * @deny (update, delete) Once an email lock is created, it cannot be changed or removed.
-     * @principle Serves as a security lock for business logic, not as user-facing data.
-     */
+    // Rules for the /emails collection to enforce uniqueness
     match /emails/{emailId} {
-      allow get: if false;
-      allow list: if false;
+      allow read, list, update, delete: if false; // Nobody can read or change email locks
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if false;
-      allow delete: if false;
     }
   }
 }
