@@ -6,7 +6,7 @@ import { ArrowRight, CreditCard, Eye, Lock } from 'lucide-react';
 import { useUser } from '@/contexts/user-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatDistanceToNow, addYears } from 'date-fns';
+import { format, addYears } from 'date-fns';
 
 function DashboardCard({
   href,
@@ -84,7 +84,7 @@ export default function DashboardPage() {
   const getNextCardCreationDate = () => {
     if (!user?.cardIssueDate) return '';
     const nextDate = addYears(user.cardIssueDate, 1);
-    return formatDistanceToNow(nextDate, { addSuffix: true });
+    return format(nextDate, 'MMMM d, yyyy');
   }
 
   const createCardDisabled = isCreateCardDisabled();
@@ -109,7 +109,7 @@ export default function DashboardPage() {
             subtitle={createCardDisabled ? 'Unavailable' : 'Get your new ID card.'}
             description="Use your device's camera to take a professional photo and generate your new digital ID card."
             disabled={createCardDisabled}
-            disabledReason={`You can create a new card ${getNextCardCreationDate()}.`}
+            disabledReason={`You can create a new card on ${getNextCardCreationDate()}.`}
           />
           <DashboardCard
             href="/view-card"
