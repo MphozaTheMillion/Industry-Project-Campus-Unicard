@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -35,7 +36,7 @@ export default function CreateCardPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidatePhotoOutput | null>(null);
-  const { user, setPhoto, setCardGenerated } = useUser();
+  const { user, loading, setPhoto, setCardGenerated } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
@@ -49,9 +50,9 @@ export default function CreateCardPage() {
       const result = await validatePhoto({ photoDataUri: imageSrc });
       setValidationResult(result);
       if (result.isValid) {
-        setPhoto(imageSrc);
-      } else {
-        setPhoto(null); // Invalidate photo in context if it's bad
+        // We will update the user context photo only for the preview on this page.
+        // This no longer affects the main header avatar.
+        // The real update happens on save.
       }
     } catch (error) {
       console.error('Validation failed:', error);
@@ -62,7 +63,6 @@ export default function CreateCardPage() {
       });
       // Treat as invalid if the validation service fails
       setValidationResult({ isValid: false, issues: [{ code: 'LOW_QUALITY', feedback: 'An unexpected error occurred during validation.' }] });
-      setPhoto(null);
     } finally {
       setIsValidating(false);
     }
@@ -71,7 +71,6 @@ export default function CreateCardPage() {
   const handleRetake = () => {
     setCapturedImage(null);
     setValidationResult(null);
-    setPhoto(null);
   };
 
   const handleSave = async () => {
@@ -84,6 +83,8 @@ export default function CreateCardPage() {
         profilePicture: capturedImage,
       });
 
+      // Explicitly update the context after successful save
+      setPhoto(capturedImage);
       setCardGenerated(true);
 
       toast({
@@ -198,7 +199,7 @@ export default function CreateCardPage() {
             <div className="mt-8">
                 <h3 className="text-lg font-semibold mb-4">Card Preview</h3>
                 <div className="flex justify-center md:justify-start">
-                    <IdCard />
+                    <IdCard photoOverride={capturedImage} />
                 </div>
             </div>
         </div>

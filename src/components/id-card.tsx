@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useUser } from "@/contexts/user-context"
@@ -7,7 +8,11 @@ import { GraduationCap, Briefcase, QrCode } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 
-export function IdCard() {
+interface IdCardProps {
+  photoOverride?: string | null;
+}
+
+export function IdCard({ photoOverride }: IdCardProps) {
   const { user, loading } = useUser();
 
   const getInitials = (name: string) => {
@@ -15,33 +20,44 @@ export function IdCard() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   }
 
-  if (loading || !user) {
+  // Display skeleton if loading and no override is provided.
+  if (loading && !photoOverride && !user) {
     return <Skeleton className="w-full max-w-sm h-[420px] rounded-2xl" />
   }
 
-  const generatedId = `${user.userType === 'student' ? 'STU' : 'STA'}-${user.email.substring(0,3).toUpperCase()}${new Date().getFullYear()}`
+  // If we have no user data at all (and no override), we can't render.
+  if (!user) {
+     return <Skeleton className="w-full max-w-sm h-[420px] rounded-2xl" />
+  }
+
+  const displayName = user.name || "First Last";
+  const displayEmail = user.email || "user@example.com";
+  const displayUserType = user.userType || "student";
+  const displayPhoto = photoOverride !== undefined ? photoOverride : user.photo;
+  
+  const generatedId = `${displayUserType === 'student' ? 'STU' : 'STA'}-${displayEmail.substring(0,3).toUpperCase()}${new Date().getFullYear()}`
 
   return (
     <div className="w-full max-w-sm animate-in fade-in zoom-in-95 duration-500">
       <Card className="rounded-2xl shadow-2xl overflow-hidden relative">
-        <div className={`h-24 ${user.userType === 'student' ? 'bg-primary' : 'bg-accent'}`} />
+        <div className={`h-24 ${displayUserType === 'student' ? 'bg-primary' : 'bg-accent'}`} />
         <CardContent className="p-6 pt-0 text-center">
             <div className="relative -mt-14 mb-4">
               <Avatar className="w-28 h-28 mx-auto border-4 border-card shadow-lg">
-                <AvatarImage src={user.photo ?? undefined} alt={user.name} />
+                <AvatarImage src={displayPhoto ?? undefined} alt={displayName} />
                 <AvatarFallback className="text-4xl">
-                  {user.name ? getInitials(user.name) : "U"}
+                  {getInitials(displayName) || "U"}
                 </AvatarFallback>
               </Avatar>
             </div>
             
-            <h2 className="text-2xl font-bold font-headline text-foreground">{user.name}</h2>
-            <p className="text-muted-foreground">{user.email}</p>
+            <h2 className="text-2xl font-bold font-headline text-foreground">{displayName}</h2>
+            <p className="text-muted-foreground">{displayEmail}</p>
             
             <div className="mt-4 flex justify-center">
-              <Badge variant={user.userType === 'student' ? 'default' : 'secondary'} className="capitalize">
-                {user.userType === 'student' ? <GraduationCap className="mr-2 h-4 w-4" /> : <Briefcase className="mr-2 h-4 w-4" />}
-                {user.userType?.replace('_', ' ')}
+              <Badge variant={displayUserType === 'student' ? 'default' : 'secondary'} className="capitalize">
+                {displayUserType === 'student' ? <GraduationCap className="mr-2 h-4 w-4" /> : <Briefcase className="mr-2 h-4 w-4" />}
+                {displayUserType?.replace('_', ' ')}
               </Badge>
             </div>
 
