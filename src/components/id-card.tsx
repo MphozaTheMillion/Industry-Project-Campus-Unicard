@@ -5,12 +5,18 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { GraduationCap, Briefcase, QrCode } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export function IdCard() {
-  const { user } = useUser();
+  const { user, loading } = useUser();
 
   const getInitials = (name: string) => {
+    if (!name) return "";
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  }
+
+  if (loading || !user) {
+    return <Skeleton className="w-full max-w-sm h-[420px] rounded-2xl" />
   }
 
   const generatedId = `${user.userType === 'student' ? 'STU' : 'STA'}-${user.email.substring(0,3).toUpperCase()}${new Date().getFullYear()}`
@@ -35,7 +41,7 @@ export function IdCard() {
             <div className="mt-4 flex justify-center">
               <Badge variant={user.userType === 'student' ? 'default' : 'secondary'} className="capitalize">
                 {user.userType === 'student' ? <GraduationCap className="mr-2 h-4 w-4" /> : <Briefcase className="mr-2 h-4 w-4" />}
-                {user.userType}
+                {user.userType?.replace('_', ' ')}
               </Badge>
             </div>
 
