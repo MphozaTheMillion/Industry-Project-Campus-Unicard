@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, doc, updateDoc, getDoc, deleteDoc, writeBatch } from 'firebase/firestore';
-import { useFirestore, useMemoFirebase } from '@/firebase';
+import { useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import {
   Table,
@@ -63,18 +63,25 @@ function StatusBadge({ status }: { status: UserProfile['cardStatus'] }) {
 
 export default function AdminDashboardPage() {
   const firestore = useFirestore();
+  const { user: adminUser, isUserLoading: isAdminLoading } = useUser();
   const { toast } = useToast();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
   const profilesCollection = useMemoFirebase(() => {
-    return firestore ? collection(firestore, 'userProfiles') : null;
-  }, [firestore]);
+    // Only create the collection reference if we have a logged-in admin and firestore is available
+    if (!firestore || isAdminLoading || !adminUser) return null;
+    return collection(firestore, 'userProfiles');
+  }, [firestore, isAdminLoading, adminUser]);
 
-  const { data: userProfiles, isLoading: profilesLoading } = useCollection<UserProfile>(profilesCollection);
+  const { data: userProfiles, isLoading: profilesLoading, error } = useCollection<UserProfile>(profilesCollection);
 
   useEffect(() => {
-    if (profilesLoading || !userProfiles || !firestore) return;
+    if (profilesLoading || !userProfiles || !firestore) {
+      // If the collection is not ready, we reflect that in the loading state
+      if (!profilesLoading) setLoading(false);
+      return;
+    }
 
     const fetchAllUsersWithStatus = async () => {
       setLoading(true);
@@ -181,6 +188,8 @@ export default function AdminDashboardPage() {
     return 'Invalid Date';
   }
   
+  const pageIsLoading = loading || isAdminLoading;
+
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
@@ -208,7 +217,7 @@ export default function AdminDashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
+                {pageIsLoading ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center">Loading users...</TableCell>
                   </TableRow>
@@ -273,7 +282,9 @@ export default function AdminDashboardPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center">No users found.</TableCell>
+                    <TableCell colSpan={8} className="text-center">
+                      {error ? "You don't have permission to view users." : "No users found."}
+                    </TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -285,3 +296,4 @@ export default function AdminDashboardPage() {
   );
 }
 
+    
