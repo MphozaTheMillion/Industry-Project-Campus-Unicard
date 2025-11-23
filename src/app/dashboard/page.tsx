@@ -61,16 +61,6 @@ export default function DashboardPage() {
     )
   }
   
-  // Fallback for unexpected user types
-  if (user.userType !== 'student' && user.userType !== 'campus_staff' && user.userType !== 'administrator' && user.userType !== 'technician') {
-    return (
-        <div className="text-center">
-            <h1 className="text-3xl font-bold font-headline">Welcome, {user.name}</h1>
-            <p className="text-muted-foreground mt-2">Your dashboard is under construction.</p>
-        </div>
-    )
-  }
-
   return (
     <div className="space-y-8">
         <div className="space-y-1">
