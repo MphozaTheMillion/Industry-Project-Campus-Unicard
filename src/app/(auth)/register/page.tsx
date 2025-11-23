@@ -34,6 +34,8 @@ const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   studentNumber: z.string().optional(),
   workId: z.string().optional(),
+  adminId: z.string().optional(),
+  technicianId: z.string().optional(),
   department: z.string().optional(),
   email: z.string().email({ message: "Invalid email address." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
@@ -66,6 +68,12 @@ const formSchema = z.object({
 }).refine(data => data.userType !== 'campus_staff' || !!data.campusName, {
     message: 'Campus name is required.',
     path: ['campusName'],
+}).refine(data => data.userType !== 'administrator' || !!data.adminId, {
+  message: 'Admin ID is required.',
+  path: ['adminId'],
+}).refine(data => data.userType !== 'technician' || !!data.technicianId, {
+  message: 'Technician ID is required.',
+  path: ['technicianId'],
 });
 
 
@@ -239,6 +247,38 @@ export default function RegisterPage() {
                 </>
               )}
 
+              {userType === "administrator" && (
+                <FormField
+                  control={form.control}
+                  name="adminId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Admin ID</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. ADM123" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {userType === "technician" && (
+                <FormField
+                  control={form.control}
+                  name="technicianId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Technician ID</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. TECH456" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
               <FormField
                 control={form.control}
                 name="email"
@@ -326,3 +366,5 @@ export default function RegisterPage() {
     </div>
   )
 }
+
+    
