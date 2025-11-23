@@ -6,6 +6,8 @@ import * as z from "zod"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Mail, KeyRound } from "lucide-react"
+import { signInWithEmailAndPassword, AuthError, signOut } from "firebase/auth"
+import { doc, getDoc, FirestoreError } from "firebase/firestore"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -19,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth, useFirestore } from "@/firebase"
 
 const formSchema = z.object({
   role: z.enum(["student", "campus_staff", "administrator", "technician"], {
@@ -31,6 +34,8 @@ const formSchema = z.object({
 export default function LoginPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const auth = useAuth()
+  const firestore = useFirestore()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -43,14 +48,68 @@ export default function LoginPage() {
 
   const role = form.watch("role")
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // In a real app, you'd handle authentication here.
-    console.log(values)
-    toast({
-      title: "Login Successful",
-      description: "Redirecting to your dashboard...",
-    })
-    router.push("/dashboard")
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      // 1. Authenticate user
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      // 2. Fetch user profile from Firestore
+      const userProfileRef = doc(firestore, "userProfiles", user.uid);
+      const userProfileSnap = await getDoc(userProfileRef);
+
+      if (!userProfileSnap.exists()) {
+        await signOut(auth); // Sign out if profile doesn't exist
+        toast({
+          variant: "destructive",
+          title: "Login Failed",
+          description: "User profile not found. Please contact support.",
+        });
+        return;
+      }
+
+      const userProfile = userProfileSnap.data();
+
+      // 3. Verify role
+      if (userProfile.userType !== values.role) {
+        await signOut(auth); // Sign out if roles don't match
+        form.setError("role", { 
+          type: "manual", 
+          message: "You are not authorized to log in with this role." 
+        });
+        toast({
+          variant: "destructive",
+          title: "Role Mismatch",
+          description: "Please select the role you registered with.",
+        });
+        return;
+      }
+
+      // 4. On success, redirect
+      toast({
+        title: "Login Successful",
+        description: "Redirecting to your dashboard...",
+      })
+      router.push("/dashboard")
+
+    } catch (error) {
+      if ((error as AuthError)?.code === 'auth/user-not-found' || (error as AuthError)?.code === 'auth/wrong-password' || (error as AuthError)?.code === 'auth/invalid-credential') {
+        toast({
+          variant: "destructive",
+          title: "Login Failed",
+          description: "Invalid email or password. Please try again."
+        });
+        form.setError("password", { type: "manual", message: " " });
+        form.setError("email", { type: "manual", message: "Invalid credentials" });
+      } else {
+        console.error("Login Error:", error);
+        toast({
+          variant: "destructive",
+          title: "An Unexpected Error Occurred",
+          description: "Please try again later.",
+        });
+      }
+    }
   }
 
   return (
