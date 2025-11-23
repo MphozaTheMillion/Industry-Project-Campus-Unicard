@@ -13,6 +13,11 @@ interface User {
   userType: UserType | null;
   photo: string | null;
   cardGenerated: boolean;
+  studentNumber?: string;
+  courseCode?: string;
+  campusName?: string;
+  workId?: string;
+  department?: string;
 }
 
 interface UserContextType {
@@ -54,8 +59,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           name: `${userData.firstName} ${userData.lastName}`,
           email: userData.email,
           userType: userData.userType,
-          photo: userData.profilePicture || null, // Assuming this field exists
-          cardGenerated: false, // You might want to store this in Firestore as well
+          photo: userData.profilePicture || null,
+          cardGenerated: !!userData.profilePicture,
+          studentNumber: userData.studentNumber,
+          courseCode: userData.courseCode,
+          campusName: userData.campusName,
+          workId: userData.workId,
+          department: userData.department,
         });
       } else {
         // Handle case where user exists in Auth but not Firestore

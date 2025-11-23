@@ -30,8 +30,6 @@ export function IdCard({ photoOverride }: IdCardProps) {
   const displayUserType = user.userType || "student";
   const displayPhoto = photoOverride !== undefined ? photoOverride : user.photo;
   
-  const generatedId = `${displayUserType === 'student' ? 'STU' : 'STA'}-${displayEmail.substring(0,3).toUpperCase()}${new Date().getFullYear()}`
-
   return (
     <div className="w-full max-w-sm animate-in fade-in zoom-in-95 duration-500">
       <Card className="rounded-2xl shadow-2xl overflow-hidden relative">
@@ -48,7 +46,6 @@ export function IdCard({ photoOverride }: IdCardProps) {
             </div>
             
             <h2 className="text-2xl font-bold font-headline text-foreground">{displayName}</h2>
-            <p className="text-muted-foreground">{displayEmail}</p>
             
             <div className="mt-4 flex justify-center">
               <Badge variant={displayUserType === 'student' ? 'default' : 'secondary'} className="capitalize">
@@ -57,12 +54,33 @@ export function IdCard({ photoOverride }: IdCardProps) {
               </Badge>
             </div>
 
-            <div className="mt-6 border-t pt-6 flex justify-between items-center text-left">
-                <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">ID Number</p>
-                    <p className="font-mono text-sm font-semibold">{generatedId}</p>
-                    <p className="text-xs text-muted-foreground">Issued</p>
-                    <p className="font-mono text-sm font-semibold">{new Date().toLocaleDateString()}</p>
+            <div className="mt-6 border-t pt-6 flex justify-between items-start text-left">
+                <div className="space-y-4">
+                  {user.userType === 'student' && user.studentNumber && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Student Number</p>
+                      <p className="font-mono text-sm font-semibold">{user.studentNumber}</p>
+                    </div>
+                  )}
+                  {user.userType === 'student' && user.courseCode && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Course</p>
+                      <p className="font-mono text-sm font-semibold">{user.courseCode}</p>
+                    </div>
+                  )}
+                  {user.campusName && (
+                     <div>
+                      <p className="text-xs text-muted-foreground">Campus</p>
+                      <p className="font-mono text-sm font-semibold">{user.campusName}</p>
+                    </div>
+                  )}
+                  {(user.userType === 'campus_staff' || user.userType === 'administrator' || user.userType === 'technician') && (
+                     <div>
+                      <p className="text-xs text-muted-foreground">Email</p>
+                      <p className="font-mono text-sm font-semibold">{displayEmail}</p>
+                    </div>
+                  )}
+
                 </div>
                 <div className="p-2 bg-white rounded-lg shadow-md">
                     <QrCode className="h-16 w-16 text-black" />
