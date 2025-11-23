@@ -63,6 +63,9 @@ const formSchema = z.object({
 }).refine(data => data.userType !== 'campus_staff' || !!data.department, {
     message: 'Department is required.',
     path: ['department'],
+}).refine(data => data.userType !== 'campus_staff' || !!data.campusName, {
+    message: 'Campus name is required.',
+    path: ['campusName'],
 });
 
 
@@ -228,6 +231,19 @@ export default function RegisterPage() {
                         <FormLabel>Department</FormLabel>
                         <FormControl>
                           <Input placeholder="e.g. Information Technology" {...field} value={field.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                   <FormField
+                    control={form.control}
+                    name="campusName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Campus Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. Main Campus" {...field} value={field.value ?? ""} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
