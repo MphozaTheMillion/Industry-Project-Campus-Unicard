@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form"
 import * as z from "zod"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import React from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -72,6 +73,18 @@ export default function RegisterPage() {
   })
 
   const userType = form.watch("userType");
+  const studentNumber = form.watch("studentNumber");
+
+  React.useEffect(() => {
+    if (userType === 'student' && studentNumber) {
+      form.setValue('email', `${studentNumber}@tut4life.ac.za`, { shouldValidate: true });
+    } else {
+      // Clear email if not a student or if student number is cleared
+      if (form.getValues('email').endsWith('@tut4life.ac.za')) {
+        form.setValue('email', '');
+      }
+    }
+  }, [userType, studentNumber, form]);
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     // In a real app, you'd handle registration here.
@@ -191,7 +204,12 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="you@example.com" {...field} />
+                      <Input 
+                        placeholder={userType === 'student' ? 'studentnumber@tut4life.ac.za' : 'you@example.com'} 
+                        {...field} 
+                        readOnly={userType === 'student'} 
+                        className={userType === 'student' ? 'bg-muted' : ''}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
