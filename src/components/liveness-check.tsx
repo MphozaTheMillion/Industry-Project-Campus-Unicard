@@ -36,7 +36,6 @@ const LIVENESS_STEPS = [
 export function LivenessCheck({ originalPhoto, onCompletion, onStatusChange }: LivenessCheckProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -45,10 +44,9 @@ export function LivenessCheck({ originalPhoto, onCompletion, onStatusChange }: L
   const capturedImages = useRef<Record<string, string>>({});
 
   const startCamera = useCallback(async () => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-    }
+    // This function is now simpler and doesn't depend on changing state like 'stream'
     setError(null);
+    setIsCameraReady(false);
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -57,25 +55,31 @@ export function LivenessCheck({ originalPhoto, onCompletion, onStatusChange }: L
           facingMode: 'user',
         },
       });
-      setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
       }
-      setIsCameraReady(true);
+      // Let the onCanPlay event on the video element set isCameraReady to true
     } catch (err) {
       console.error("Error accessing camera:", err);
       setError("Could not access the camera. Please grant permission and ensure a camera is connected.");
       setIsCameraReady(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // Empty dependency array ensures this function reference is stable
 
   useEffect(() => {
+    // This effect runs once on mount to start the camera and set up cleanup.
     startCamera();
+
+    const videoElement = videoRef.current;
+    
     return () => {
-      stream?.getTracks().forEach(track => track.stop());
+      // Cleanup: stop all media tracks when the component unmounts.
+      if (videoElement && videoElement.srcObject) {
+        const stream = videoElement.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+      }
     };
-  }, [startCamera, stream]);
+  }, [startCamera]); // Depends only on the stable startCamera function
 
   const captureFrame = (): string | null => {
     if (videoRef.current && canvasRef.current) {

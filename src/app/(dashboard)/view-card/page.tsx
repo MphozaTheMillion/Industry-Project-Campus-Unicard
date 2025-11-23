@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -17,6 +18,8 @@ export default function ViewCardPage() {
   const router = useRouter();
   const { user, loading } = useUser();
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>('unverified');
+  const [showLivenessCheck, setShowLivenessCheck] = useState(false);
+
 
   const handleVerificationComplete = (success: boolean) => {
     if (success) {
@@ -46,6 +49,33 @@ export default function ViewCardPage() {
           </div>
         );
     }
+    
+    if (!showLivenessCheck) {
+      return (
+        <Card className="w-full max-w-lg text-center">
+            <CardHeader>
+              <div className="mx-auto bg-primary/10 rounded-full p-3 w-fit">
+                  <UserCheck className="h-10 w-10 text-primary" />
+              </div>
+              <CardTitle className="mt-4">Identity Verification Required</CardTitle>
+              <CardDescription>To keep your account secure, we need to quickly verify it's you.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+               <div className="text-left bg-muted p-4 rounded-md border text-sm">
+                  <h4 className="font-semibold mb-2">You will be asked to:</h4>
+                  <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                      <li>Look straight at the camera.</li>
+                      <li>Blink your eyes.</li>
+                      <li>Turn your head to the right.</li>
+                  </ul>
+              </div>
+              <Button onClick={() => setShowLivenessCheck(true)} size="lg" className="w-full">
+                Begin Verification
+              </Button>
+            </CardContent>
+          </Card>
+      );
+    }
 
     switch (verificationStatus) {
       case 'unverified':
@@ -56,7 +86,7 @@ export default function ViewCardPage() {
             onCompletion={handleVerificationComplete}
             onStatusChange={(status) => {
               if (status === 'verifying') {
-                setVerificationStatus('verifying');
+                setVerificationistrationStatus('verifying');
               }
             }}
           />
