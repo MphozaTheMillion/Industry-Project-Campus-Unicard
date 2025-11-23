@@ -41,8 +41,12 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      // An admin's userType is stored in their profile document.
-      return isSignedIn() && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userType == 'administrator';
+      // Use custom claims for write operations to avoid disallowed get() calls.
+      // For read operations, get() is allowed and can be used as a fallback.
+      return isSignedIn() && (
+        request.auth.token.userType == 'administrator' || 
+        get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userType == 'administrator'
+      );
     }
 
     function isNotChangingUserProfileKeys() {
@@ -73,9 +77,9 @@ service cloud.firestore {
       match /digitalIdCards/{cardId} {
         allow get, list: if isOwner(userProfileId) || isAdmin();
         allow create: if isOwner(userProfileId) && request.resource.data.userProfileId == userProfileId;
-        allow update: if (isExistingOwner(userProfileId) && isNotChangingDigitalIdCardKeys() && isUpdatingOwnCardStatus(userProfileId)) ||
+        allow update: if (isOwner(userProfileId) && isNotChangingDigitalIdCardKeys() && !('cardStatus' in request.resource.data.diff(resource.data))) ||
                        (isAdmin() && request.resource.data.keys().hasOnly(['cardStatus']));
-        allow delete: if isExistingOwner(userProfileId) || isAdmin();
+        allow delete: if isOwner(userProfileId) || isAdmin();
       }
     }
     
