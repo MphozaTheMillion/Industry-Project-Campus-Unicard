@@ -15,7 +15,18 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const stopCamera = useCallback(() => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+  }, [stream]);
+
   const startCamera = useCallback(async () => {
+    // Ensure any existing stream is stopped before starting a new one.
+    if (stream) {
+      stopCamera();
+    }
     setError(null);
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -43,21 +54,23 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
         setError("An unknown error occurred while accessing the camera.");
       }
     }
+  // The dependency array should not include `stream` or `stopCamera` to avoid loops.
+  // We manage the stream lifecycle explicitly.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const stopCamera = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-    }
-  }, [stream]);
 
   useEffect(() => {
     startCamera();
+    // The cleanup function will be called when the component unmounts.
     return () => {
-      stopCamera();
+      // This logic will be handled by stopCamera, which we can call in `handleCapture`
+      // or when the component unmounts. Let's make sure the stream is stopped.
+      if (videoRef.current && videoRef.current.srcObject) {
+         const currentStream = videoRef.current.srcObject as MediaStream;
+         currentStream.getTracks().forEach(track => track.stop());
+      }
     };
-  }, [startCamera, stopCamera]);
+  }, [startCamera]);
 
   const handleCapture = () => {
     if (videoRef.current && canvasRef.current) {
