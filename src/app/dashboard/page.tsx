@@ -1,23 +1,49 @@
 "use client"
 
 import Link from 'next/link';
-import { CreditCard, Eye, LogIn } from 'lucide-react';
+import { CreditCard, Eye, LogIn, ArrowRight } from 'lucide-react';
 import { useUser } from '@/contexts/user-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+
+const ActionCard = ({ href, icon, title, shortDescription, longDescription }: { href: string; icon: React.ReactNode; title: string; shortDescription: string; longDescription: string }) => (
+    <Link href={href} className="block group">
+        <Card className="hover:shadow-xl hover:border-primary/50 transition-all duration-300 h-full flex flex-col">
+            <CardContent className="p-6 flex-grow">
+                <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-4">
+                        <div className="p-3 bg-primary/10 rounded-lg text-primary">
+                            {icon}
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-foreground">{title}</h3>
+                            <p className="text-sm text-muted-foreground">{shortDescription}</p>
+                        </div>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                </div>
+                <p className="text-muted-foreground mt-4 text-sm">
+                    {longDescription}
+                </p>
+            </CardContent>
+        </Card>
+    </Link>
+);
 
 export default function DashboardPage() {
   const { user, loading } = useUser();
   
   if (loading) {
     return (
-        <div className="space-y-4">
-            <Skeleton className="h-8 w-1/3" />
-            <Skeleton className="h-6 w-1/2" />
+        <div className="space-y-8">
+            <div className="space-y-2">
+                <Skeleton className="h-10 w-1/2" />
+                <Skeleton className="h-6 w-3/4" />
+            </div>
             <div className="grid md:grid-cols-2 gap-6">
-                <Skeleton className="h-48 w-full" />
-                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-56 w-full" />
+                <Skeleton className="h-56 w-full" />
             </div>
         </div>
     );
@@ -34,9 +60,9 @@ export default function DashboardPage() {
       </div>
     )
   }
-
-  // Fallback for unexpected user types, though the login logic should prevent this.
-  if (user.userType !== 'student' && user.userType !== 'campus_staff') {
+  
+  // Fallback for unexpected user types
+  if (user.userType !== 'student' && user.userType !== 'campus_staff' && user.userType !== 'administrator' && user.userType !== 'technician') {
     return (
         <div className="text-center">
             <h1 className="text-3xl font-bold font-headline">Welcome, {user.name}</h1>
@@ -46,38 +72,27 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
         <div className="space-y-1">
-            <h1 className="text-3xl md:text-4xl font-bold font-headline">Welcome, {user.name}</h1>
-            <p className="text-muted-foreground md:text-lg">Manage your digital ID and access campus services.</p>
+            <h1 className="text-4xl md:text-5xl font-bold font-headline text-foreground">Welcome, {user.name.split(' ')[0]}!</h1>
+            <p className="text-muted-foreground md:text-lg">Manage your digital ID card from here.</p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
-            <Card className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                    <CreditCard className="h-8 w-8 text-primary mb-2" />
-                    <CardTitle>Create Digital Card</CardTitle>
-                    <CardDescription>Generate your new secure digital ID card by taking a photo.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Button asChild className="w-full">
-                        <Link href="/dashboard/create-card">Create Your Card</Link>
-                    </Button>
-                </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                    <Eye className="h-8 w-8 text-accent mb-2" />
-                    <CardTitle>View Digital Card</CardTitle>
-                    <CardDescription>Display your existing digital ID card for verification and access.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Button asChild className="w-full" variant="secondary">
-                        <Link href="/dashboard/view-card">View Your Card</Link>
-                    </Button>
-                </CardContent>
-            </Card>
+           <ActionCard 
+                href="/dashboard/create-card"
+                icon={<CreditCard className="h-6 w-6" />}
+                title="Create Digital Card"
+                shortDescription="Get your new ID card."
+                longDescription="Use your device's camera to take a professional photo and generate your new digital ID card."
+           />
+           <ActionCard 
+                href="/dashboard/view-card"
+                icon={<Eye className="h-6 w-6" />}
+                title="View Digital Card"
+                shortDescription="Display your current ID."
+                longDescription="Display your existing digital ID card. You can show this card for verification on campus."
+           />
         </div>
     </div>
   );
