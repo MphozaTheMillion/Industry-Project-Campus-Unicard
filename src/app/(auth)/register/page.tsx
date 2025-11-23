@@ -7,7 +7,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import React from "react"
 import { createUserWithEmailAndPassword, AuthError } from "firebase/auth"
-import { doc, setDoc, serverTimestamp } from "firebase/firestore"
+import { doc, setDoc, serverTimestamp, writeBatch } from "firebase/firestore"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -30,7 +30,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Logo } from "@/components/logo"
 import { useToast } from "@/hooks/use-toast"
-import { useFirestore, useAuth } from "@/firebase"
+import { useFirestore, useAuth, errorEmitter, FirestorePermissionError } from "@/firebase"
 
 const formSchema = z.object({
   userType: z.enum(["student", "campus_staff", "administrator", "technician"], { required_error: "You need to select a user type." }),
@@ -148,16 +148,11 @@ export default function RegisterPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      // 1. Create user with Firebase Auth
+      // 1. Create user with Firebase Auth - this can still throw and should be caught
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
-      // 2. Create a "lock" document in the 'emails' collection
-      const emailLockRef = doc(firestore, "emails", values.email);
-      await setDoc(emailLockRef, { userId: user.uid });
-
-      // 3. Create user profile in 'userProfiles' collection
-      const userProfileRef = doc(firestore, "userProfiles", user.uid);
+      // 2. Prepare data and references for batch write
       const [firstName, ...lastNameParts] = values.name.split(' ');
       const lastName = lastNameParts.join(' ');
       
@@ -178,16 +173,50 @@ export default function RegisterPage() {
         campusName: values.campusName || null,
       };
 
-      await setDoc(userProfileRef, userProfileData);
+      const userProfileRef = doc(firestore, "userProfiles", user.uid);
+      const emailLockRef = doc(firestore, "emails", values.email);
+      const emailLockData = { userId: user.uid };
+      
+      // 3. Use a batch write for atomicity
+      const batch = writeBatch(firestore);
+      batch.set(emailLockRef, emailLockData);
+      batch.set(userProfileRef, userProfileData);
 
-      toast({
-        title: "Registration Successful",
-        description: "You can now log in with your credentials.",
-      });
-      router.push("/login");
+      // 4. Commit the batch and handle potential permission errors
+      batch.commit()
+        .then(() => {
+          toast({
+            title: "Registration Successful",
+            description: "You can now log in with your credentials.",
+          });
+          router.push("/login");
+        })
+        .catch((error) => {
+          // This will catch errors from the batch commit, likely permissions
+          console.error("Firestore batch write failed:", error);
+          
+          // We can't know which write failed, so we create a generic write error
+          // A more sophisticated approach might try to determine the failed operation
+          const permissionError = new FirestorePermissionError({
+            path: `userProfiles/${user.uid} and emails/${values.email}`, // Indicate both paths
+            operation: 'write', // Batch involves 'set' which is a type of 'write'
+            requestResourceData: { 
+              profile: userProfileData,
+              emailLock: emailLockData
+            },
+          });
+          errorEmitter.emit('permission-error', permissionError);
+
+          // We can still show a generic error to the user in the toast
+           toast({
+            variant: "destructive",
+            title: "Registration Failed",
+            description: "Could not save user data. Please check permissions.",
+          });
+        });
 
     } catch (error) {
-      console.error("Registration failed:", error);
+      console.error("Auth creation failed:", error);
       const authError = error as AuthError;
       let errorMessage = "An unexpected error occurred during registration.";
       if (authError.code === 'auth/email-already-in-use') {
