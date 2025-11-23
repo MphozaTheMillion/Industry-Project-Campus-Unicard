@@ -86,7 +86,7 @@ export default function ViewCardPage() {
             onCompletion={handleVerificationComplete}
             onStatusChange={(status) => {
               if (status === 'verifying') {
-                setVerificationistrationStatus('verifying');
+                setVerificationStatus('verifying');
               }
             }}
           />
