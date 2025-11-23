@@ -1,8 +1,9 @@
+
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { collection, getDocs, doc, updateDoc, getDoc, deleteDoc, writeBatch } from 'firebase/firestore';
-import { useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import {
   Table,
@@ -68,45 +69,61 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   const profilesCollection = useMemoFirebase(() => {
-    // Only create the collection reference if we have a logged-in admin and firestore is available
-    if (!firestore || isAdminLoading || !adminUser) return null;
+    if (!firestore || !adminUser) return null;
     return collection(firestore, 'userProfiles');
-  }, [firestore, isAdminLoading, adminUser]);
+  }, [firestore, adminUser]);
 
   const { data: userProfiles, isLoading: profilesLoading, error } = useCollection<UserProfile>(profilesCollection);
 
   useEffect(() => {
-    if (!adminUser || !firestore) return; // Wait until admin user and firestore are available
-
-    if (profilesLoading || !userProfiles) {
-      // If the collection is not ready, we reflect that in the loading state
-      if (!profilesLoading) setLoading(false);
-      return;
+    if (isAdminLoading || !firestore) return;
+    if (!adminUser) {
+        setLoading(false);
+        return;
     }
 
     const fetchAllUsersWithStatus = async () => {
       setLoading(true);
-      const usersWithStatus = await Promise.all(
-        userProfiles.map(async (user) => {
-          // The digitalIdCard is stored with a fixed ID 'main' inside a subcollection
-          const cardDocRef = doc(firestore, 'userProfiles', user.id, 'digitalIdCards', 'main');
-          try {
-            const cardDocSnap = await getDoc(cardDocRef);
-            if (cardDocSnap.exists()) {
-              return { ...user, cardStatus: cardDocSnap.data().cardStatus };
+      try {
+        const profileDocs = await getDocs(collection(firestore, 'userProfiles'));
+        const profiles = profileDocs.docs.map(doc => ({ id: doc.id, ...doc.data() })) as UserProfile[];
+
+        const usersWithStatus = await Promise.all(
+          profiles.map(async (user) => {
+            const cardDocRef = doc(firestore, 'userProfiles', user.id, 'digitalIdCards', 'main');
+            try {
+              const cardDocSnap = await getDoc(cardDocRef);
+              if (cardDocSnap.exists()) {
+                return { ...user, cardStatus: cardDocSnap.data().cardStatus };
+              }
+            } catch (e) {
+              console.error(`Failed to fetch card for user ${user.id}`, e);
             }
-          } catch (e) {
-            console.error(`Failed to fetch card for user ${user.id}`, e);
-          }
-          return user; // Return user even if card status fetch fails
-        })
-      );
-      setUsers(usersWithStatus);
-      setLoading(false);
+            return user;
+          })
+        );
+        setUsers(usersWithStatus);
+      } catch (serverError: any) {
+         if (serverError.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: 'userProfiles',
+                operation: 'list',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+         }
+         console.error("Failed to fetch users:", serverError);
+         toast({
+            variant: "destructive",
+            title: "Error Fetching Users",
+            description: "You do not have permission to view the user list.",
+        });
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchAllUsersWithStatus();
-  }, [userProfiles, profilesLoading, firestore, adminUser]);
+  }, [adminUser, isAdminLoading, firestore, toast]);
 
   const handleUpdateStatus = async (userId: string, status: 'suspended' | 'revoked') => {
     if (!firestore) return;
@@ -122,10 +139,16 @@ export default function AdminDashboardPage() {
       });
     } catch (error) {
       console.error("Failed to update status:", error);
+      const permissionError = new FirestorePermissionError({
+        path: cardDocRef.path,
+        operation: 'update',
+        requestResourceData: { cardStatus: status },
+      });
+      errorEmitter.emit('permission-error', permissionError);
       toast({
         variant: "destructive",
         title: "Update Failed",
-        description: "Could not update the user's card status. The user may not have a card yet.",
+        description: "Could not update the user's card status. Check permissions.",
       });
     }
   };
@@ -136,15 +159,12 @@ export default function AdminDashboardPage() {
     try {
       const batch = writeBatch(firestore);
 
-      // 1. Delete user profile
       const userProfileRef = doc(firestore, "userProfiles", userToRemove.id);
       batch.delete(userProfileRef);
 
-      // 2. Delete email lock
       const emailLockRef = doc(firestore, "emails", userToRemove.email);
       batch.delete(emailLockRef);
       
-      // 3. Delete digital card (if exists)
       const cardDocRef = doc(firestore, 'userProfiles', userToRemove.id, 'digitalIdCards', 'main');
       batch.delete(cardDocRef);
 
@@ -154,38 +174,38 @@ export default function AdminDashboardPage() {
 
       toast({
         title: "User Removed",
-        description: `${userToRemove.firstName} ${userToRemove.lastName}'s data has been removed from the database.`,
+        description: `${userToRemove.firstName} ${userToRemove.lastName}'s data has been removed.`,
       });
 
     } catch (error) {
        console.error("Failed to remove user:", error);
+       const permissionError = new FirestorePermissionError({
+         path: `userProfiles/${userToRemove.id}`, 
+         operation: 'delete',
+       });
+       errorEmitter.emit('permission-error', permissionError);
        toast({
          variant: "destructive",
          title: "Removal Failed",
-         description: "Could not remove the user's data. Please check permissions or try again.",
+         description: "Could not remove the user's data. Please check permissions.",
        });
     }
   };
   
   const formatDate = (date: any) => {
     if (!date) return 'N/A';
-    // Check if it's a Firebase Timestamp
     if (date.seconds) {
       return format(date.toDate(), 'PPp');
     }
-    // Check if it's already a Date object
     if (date instanceof Date) {
       return format(date, 'PPp');
     }
-    // Try to parse it as a string
     try {
       const parsedDate = new Date(date);
       if (!isNaN(parsedDate.getTime())) {
         return format(parsedDate, 'PPp');
       }
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) {}
     return 'Invalid Date';
   }
   
@@ -296,3 +316,5 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
+
+    
