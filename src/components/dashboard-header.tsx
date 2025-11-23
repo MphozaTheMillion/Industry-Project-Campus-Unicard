@@ -7,7 +7,7 @@ import { signOut } from "firebase/auth"
 
 import { useUser } from "@/contexts/user-context"
 import { useAuth } from "@/firebase"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -49,7 +49,6 @@ export function DashboardHeader() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={user.photo ?? undefined} alt={user.name} />
             <AvatarFallback>
               {user.name ? getInitials(user.name) : <UserIcon />}
             </AvatarFallback>

@@ -3,10 +3,10 @@
 
 import { useUser } from "@/contexts/user-context"
 import { Card, CardContent } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { GraduationCap, Briefcase, QrCode } from "lucide-react"
+import { GraduationCap, Briefcase, QrCode, User as UserIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import Image from "next/image"
 
 interface IdCardProps {
   photoOverride?: string | null;
@@ -14,11 +14,6 @@ interface IdCardProps {
 
 export function IdCard({ photoOverride }: IdCardProps) {
   const { user, loading } = useUser();
-
-  const getInitials = (name: string) => {
-    if (!name) return "";
-    return name.split(' ').map(n => n[0]).join('').toUpperCase();
-  }
 
   // Display skeleton if loading and no override is provided.
   if (loading && !photoOverride && !user) {
@@ -42,13 +37,14 @@ export function IdCard({ photoOverride }: IdCardProps) {
       <Card className="rounded-2xl shadow-2xl overflow-hidden relative">
         <div className={`h-24 ${displayUserType === 'student' ? 'bg-primary' : 'bg-accent'}`} />
         <CardContent className="p-6 pt-0 text-center">
-            <div className="relative -mt-14 mb-4">
-              <Avatar className="w-28 h-28 mx-auto border-4 border-card shadow-lg">
-                <AvatarImage src={displayPhoto ?? undefined} alt={displayName} />
-                <AvatarFallback className="text-4xl">
-                  {getInitials(displayName) || "U"}
-                </AvatarFallback>
-              </Avatar>
+            <div className="relative -mt-14 mb-4 flex justify-center">
+              <div className="w-28 h-28 bg-muted rounded-md border-4 border-card shadow-lg flex items-center justify-center overflow-hidden">
+                {displayPhoto ? (
+                  <Image src={displayPhoto} alt={displayName} width={112} height={112} className="object-cover w-full h-full" />
+                ) : (
+                  <UserIcon className="w-16 h-16 text-muted-foreground" />
+                )}
+              </div>
             </div>
             
             <h2 className="text-2xl font-bold font-headline text-foreground">{displayName}</h2>
