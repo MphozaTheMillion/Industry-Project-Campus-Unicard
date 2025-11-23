@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -66,14 +67,15 @@ export function LivenessCheck({ originalPhoto, onCompletion, onStatusChange }: L
       setError("Could not access the camera. Please grant permission and ensure a camera is connected.");
       setIsCameraReady(false);
     }
-  }, [stream]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     startCamera();
     return () => {
       stream?.getTracks().forEach(track => track.stop());
     };
-  }, [startCamera]);
+  }, [startCamera, stream]);
 
   const captureFrame = (): string | null => {
     if (videoRef.current && canvasRef.current) {
