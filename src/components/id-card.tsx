@@ -75,13 +75,25 @@ export function IdCard({ photoOverride }: IdCardProps) {
                       <p className="font-mono text-sm font-semibold">{user.courseCode}</p>
                     </div>
                   )}
+                   {user.userType === 'campus_staff' && user.workId && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Staff ID</p>
+                      <p className="font-mono text-sm font-semibold">{user.workId}</p>
+                    </div>
+                  )}
+                  {user.userType === 'campus_staff' && user.department && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Department</p>
+                      <p className="font-mono text-sm font-semibold">{user.department}</p>
+                    </div>
+                  )}
                   {user.campusName && (
                      <div>
                       <p className="text-xs text-muted-foreground">Campus</p>
                       <p className="font-mono text-sm font-semibold">{user.campusName}</p>
                     </div>
                   )}
-                  {(user.userType === 'campus_staff' || user.userType === 'administrator' || user.userType === 'technician') && (
+                  {(user.userType === 'administrator' || user.userType === 'technician') && (
                      <div>
                       <p className="text-xs text-muted-foreground">Email</p>
                       <p className="font-mono text-sm font-semibold">{user.email}</p>
