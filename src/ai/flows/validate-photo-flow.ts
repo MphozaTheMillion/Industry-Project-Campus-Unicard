@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview An AI flow for validating user-submitted ID photos.
@@ -20,7 +21,7 @@ const ValidatePhotoInputSchema = z.object({
 export type ValidatePhotoInput = z.infer<typeof ValidatePhotoInputSchema>;
 
 const PhotoIssueSchema = z.object({
-    code: z.enum(["NOT_NECK_UP", "NOT_NEUTRAL_EXPRESSION", "EYES_NOT_VISIBLE", "HAS_HAT_OR_GLASSES", "HAS_SHADOWS_OR_REFLECTIONS", "NOT_A_PERSON", "LOW_QUALITY"]),
+    code: z.enum(["NOT_NECK_UP", "NOT_NEUTRAL_EXPRESSION", "EYES_NOT_VISIBLE", "HAS_HAT_OR_GLASSES", "HAS_SHADOWS_OR_REFLECTIONS", "NOT_A_PERSON"]),
     feedback: z.string().describe("A user-friendly message explaining the issue and how to fix it."),
 });
 
