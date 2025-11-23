@@ -74,6 +74,12 @@ const formSchema = z.object({
 }).refine(data => data.userType !== 'technician' || !!data.technicianId, {
   message: 'Technician ID is required.',
   path: ['technicianId'],
+}).refine(data => data.userType !== 'administrator' || !!data.campusName, {
+    message: 'Campus name is required.',
+    path: ['campusName'],
+}).refine(data => data.userType !== 'technician' || !!data.campusName, {
+    message: 'Campus name is required.',
+    path: ['campusName'],
 });
 
 
@@ -330,8 +336,24 @@ export default function RegisterPage() {
                   )}
                 />
               )}
+              
+              {(userType === "administrator" || userType === "technician") && (
+                  <FormField
+                    control={form.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Confirm Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="••••••••" {...field} value={field.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
-              {(userType === "student" || userType === "campus_staff") && (
+              {(userType === "student" || userType === "campus_staff" || userType === "administrator" || userType === "technician") && (
                 <FormField
                   control={form.control}
                   name="campusName"
@@ -346,7 +368,6 @@ export default function RegisterPage() {
                   )}
                 />
               )}
-
 
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? "Creating Account..." : "Create Account"}
@@ -366,5 +387,3 @@ export default function RegisterPage() {
     </div>
   )
 }
-
-    
