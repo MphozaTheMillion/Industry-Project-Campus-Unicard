@@ -97,7 +97,13 @@
     "providers": [
       "password",
       "anonymous"
-    ]
+    ],
+    "claims": {
+      "userType": {
+        "type": "string",
+        "enum": ["student", "campus_staff", "administrator", "technician"]
+      }
+    }
   },
   "firestore": {
     "structure": [

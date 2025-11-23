@@ -43,8 +43,13 @@ service cloud.firestore {
     function isAdmin() {
       // An admin's userType is stored in their profile document.
       // This requires a `get` call, which has security and performance implications.
-      // It's crucial this is used judiciously.
+      // It's crucial this is used judiciously and ONLY for read operations.
       return isSignedIn() && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userType == 'administrator';
+    }
+
+    function isAdminViaToken() {
+        // Use custom claims for write operations to avoid disallowed get() calls.
+        return isSignedIn() && request.auth.token.userType == 'administrator';
     }
 
     function isNotChangingUserProfileKeys() {
@@ -64,17 +69,17 @@ service cloud.firestore {
                      request.resource.data.id == userProfileId &&
                      !exists(/databases/$(database)/documents/emails/$(request.resource.data.email));
       allow update: if isExistingOwner(userProfileId) && isNotChangingUserProfileKeys();
-      allow delete: if isExistingOwner(userProfileId) || isAdmin();
+      allow delete: if isExistingOwner(userProfileId) || isAdminViaToken();
 
       // Rules for the nested digitalIdCards subcollection
       match /digitalIdCards/{cardId} {
         allow get, list: if isOwner(userProfileId) || isAdmin();
         allow create: if isOwner(userProfileId) && request.resource.data.userProfileId == userProfileId;
         // Owners can update their card if they don't change key fields.
-        // Admins can update ONLY the cardStatus field.
+        // Admins can update ONLY the cardStatus field, checked via token claim.
         allow update: if (isExistingOwner(userProfileId) && isNotChangingDigitalIdCardKeys()) || 
-                       (isAdmin() && request.resource.data.keys().hasOnly(['cardStatus']));
-        allow delete: if isExistingOwner(userProfileId) || isAdmin();
+                       (isAdminViaToken() && request.resource.data.keys().hasOnly(['cardStatus']));
+        allow delete: if isExistingOwner(userProfileId) || isAdminViaToken();
       }
     }
     
