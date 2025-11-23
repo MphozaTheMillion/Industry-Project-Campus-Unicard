@@ -7,7 +7,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import React from "react"
 import { createUserWithEmailAndPassword, AuthError } from "firebase/auth"
-import { doc, getDoc, writeBatch, serverTimestamp } from "firebase/firestore"
+import { doc, getDoc, writeBatch, serverTimestamp, FirestoreError } from "firebase/firestore"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -148,18 +148,6 @@ export default function RegisterPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      // Proactively check if email exists in the `emails` collection lock
-      const emailLockRef = doc(firestore, "emails", values.email);
-      const emailLockSnap = await getDoc(emailLockRef);
-      
-      if (emailLockSnap.exists()) {
-          form.setError("email", { 
-              type: "manual", 
-              message: "This email is already registered. Please use a different email or log in." 
-          });
-          return; // Stop the submission
-      }
-        
       // 1. Create user with Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
@@ -194,7 +182,7 @@ export default function RegisterPage() {
       batch.set(newEmailLockRef, emailLockData);
       batch.set(userProfileRef, userProfileData);
 
-      // 4. Commit the batch and handle potential permission errors
+      // 4. Commit the batch. Note: This operation will be protected by security rules.
       await batch.commit()
       
       toast({
@@ -204,17 +192,29 @@ export default function RegisterPage() {
       router.push("/login");
 
     } catch (error) {
-      // This outer catch now primarily handles auth errors or the proactive email check failure
       console.error("Registration failed:", error);
       const authError = error as AuthError;
+      const firestoreError = error as FirestoreError;
 
       if (authError.code === 'auth/email-already-in-use') {
         form.setError("email", { 
             type: "manual", 
             message: "This email is already registered. Please log in." 
         });
-      } else if (error instanceof FirestorePermissionError) {
-          // If it's our custom permission error, emit it for the dev overlay
+      } else if (firestoreError.code === 'permission-denied') {
+        // This is a more specific catch for the permission error when writing the batch.
+        // This can happen if the `emails` collection rule denies the write.
+        form.setError("email", {
+            type: "manual",
+            message: "This email address may already be in use. Please try another."
+        });
+        toast({
+          variant: "destructive",
+          title: "Registration Blocked",
+          description: "Could not create account. The email might already be registered.",
+        });
+      }
+      else if (error instanceof FirestorePermissionError) {
           errorEmitter.emit('permission-error', error);
           toast({
               variant: "destructive",
@@ -222,7 +222,7 @@ export default function RegisterPage() {
               description: "Could not save your user data due to a permissions issue.",
           });
       } else {
-        // Generic fallback for other unexpected errors during setup
+        // Generic fallback for other unexpected errors
         toast({
           variant: "destructive",
           title: "Registration Failed",
@@ -479,3 +479,5 @@ export default function RegisterPage() {
     </div>
   )
 }
+
+    
