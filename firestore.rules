@@ -70,7 +70,8 @@ service cloud.firestore {
       match /digitalIdCards/{cardId} {
         allow get, list: if isOwner(userProfileId) || isAdmin();
         allow create: if isOwner(userProfileId) && request.resource.data.userProfileId == userProfileId;
-        // Admins can only update the cardStatus field.
+        // Owners can update their card if they don't change key fields.
+        // Admins can update ONLY the cardStatus field.
         allow update: if (isExistingOwner(userProfileId) && isNotChangingDigitalIdCardKeys()) || 
                        (isAdmin() && request.resource.data.keys().hasOnly(['cardStatus']));
         allow delete: if isExistingOwner(userProfileId) || isAdmin();
