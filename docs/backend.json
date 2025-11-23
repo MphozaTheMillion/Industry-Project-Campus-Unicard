@@ -1,0 +1,149 @@
+{
+  "entities": {
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Represents a user profile within the CampusCard application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user profile.",
+          "format": "uuid"
+        },
+        "firstName": {
+          "type": "string",
+          "description": "First name of the user."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "Last name of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        },
+        "registrationDate": {
+          "type": "string",
+          "description": "Date and time when the user registered.",
+          "format": "date-time"
+        },
+        "profilePicture": {
+          "type": "string",
+          "description": "Reference to the user's profile picture.",
+          "format": "uri"
+        },
+        "userType": {
+          "type": "string",
+          "description": "Type of user, e.g., 'student' or 'staff'."
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "email",
+        "registrationDate",
+        "profilePicture",
+        "userType"
+      ]
+    },
+    "DigitalIdCard": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DigitalIdCard",
+      "type": "object",
+      "description": "Represents a digital ID card for a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the digital ID card."
+        },
+        "userProfileId": {
+          "type": "string",
+          "description": "Reference to the UserProfile associated with this ID card. (Relationship: UserProfile 1:1 DigitalIdCard)"
+        },
+        "cardIssueDate": {
+          "type": "string",
+          "description": "Date and time when the digital ID card was issued.",
+          "format": "date-time"
+        },
+        "cardExpiryDate": {
+          "type": "string",
+          "description": "Date and time when the digital ID card expires.",
+          "format": "date-time"
+        },
+        "cardStatus": {
+          "type": "string",
+          "description": "Status of the card, e.g., 'active', 'inactive', 'blocked'."
+        }
+      },
+      "required": [
+        "id",
+        "userProfileId",
+        "cardIssueDate",
+        "cardExpiryDate",
+        "cardStatus"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/userProfiles/{userProfileId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores user profiles. Path-based ownership ensures that only the user can access their own profile.",
+          "params": [
+            {
+              "name": "userProfileId",
+              "description": "The unique identifier for the user profile."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/userProfiles/{userProfileId}/digitalIdCard",
+        "definition": {
+          "entityName": "DigitalIdCard",
+          "schema": {
+            "$ref": "#/backend/entities/DigitalIdCard"
+          },
+          "description": "Stores digital ID cards for each user. Path-based ownership guarantees that only the associated user can access the digital ID card. The userProfileId is denormalized to prevent needing a get() call to ensure only a single digitalIdCard can be created.",
+          "params": [
+            {
+              "name": "userProfileId",
+              "description": "The unique identifier for the user profile."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/emails/{emailId}",
+        "definition": {
+          "entityName": "emails",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores email to control one account for person.",
+          "params": [
+            {
+              "name": "emailId",
+              "description": "The unique identifier for the email."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to ensure secure and efficient data management for the CampusCard application, focusing on authorization independence and clear access control. User profiles and digital ID cards are stored in separate collections with path-based ownership for user-specific data. To ensure a user only creates a single account, a separate collection `emails` is used to store emails to check that no other user is registering with the same email.\n\nAuthorization Independence (CRITICAL): By using path-based ownership for `userProfiles` and `digitalIdCards`, authorization rules can be written without relying on `get()` calls to parent documents. This allows for atomic operations (transactions/batches) when creating or modifying user data. The email check relies on the path-based ownership so a duplicate email can't exist.\n\nQAPs Support: The segregation of data into different collections (`userProfiles`, `digitalIdCards`, and `emails`) simplifies security rules and enables secure list operations. Path-based ownership ensures that users can only access their own data, preventing unauthorized access."
+  }
+}
