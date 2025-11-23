@@ -39,7 +39,7 @@ const formSchema = z.object({
   department: z.string().optional(),
   email: z.string().email({ message: "Invalid email address." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
-  confirmPassword: z.string().optional(),
+  confirmPassword: z.string(),
   courseCode: z.string().optional(),
   campusName: z.string().optional(),
 }).refine(data => data.password === data.confirmPassword, {
@@ -53,6 +53,14 @@ const formSchema = z.object({
 }, {
   message: 'Student number is required.',
   path: ['studentNumber'],
+}).refine(data => {
+    if (data.userType === 'student' && data.studentNumber) {
+        return /^\d{9}$/.test(data.studentNumber);
+    }
+    return true;
+}, {
+    message: 'Student number must be exactly 9 digits.',
+    path: ['studentNumber'],
 }).refine(data => {
   if (data.userType === 'student') {
     return !!data.courseCode;
