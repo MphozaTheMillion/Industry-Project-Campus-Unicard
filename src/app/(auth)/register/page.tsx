@@ -32,7 +32,7 @@ const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email({ message: "Invalid email address." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
-  userType: z.enum(["student", "staff"], { required_error: "You need to select a user type." }),
+  userType: z.enum(["student", "campus_staff", "administrator", "technician"], { required_error: "You need to select a user type." }),
 })
 
 export default function RegisterPage() {
@@ -45,6 +45,7 @@ export default function RegisterPage() {
       name: "",
       email: "",
       password: "",
+      userType: "student",
     },
   })
 
@@ -121,19 +122,31 @@ export default function RegisterPage() {
                       <RadioGroup
                         onValueChange={field.onChange}
                         defaultValue={field.value}
-                        className="flex flex-col space-y-1"
+                        className="grid grid-cols-2 gap-4"
                       >
-                        <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormItem className="flex items-center space-x-2 space-y-0">
                           <FormControl>
                             <RadioGroupItem value="student" />
                           </FormControl>
                           <FormLabel className="font-normal">Student</FormLabel>
                         </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormItem className="flex items-center space-x-2 space-y-0">
                           <FormControl>
-                            <RadioGroupItem value="staff" />
+                            <RadioGroupItem value="campus_staff" />
                           </FormControl>
-                          <FormLabel className="font-normal">Staff Member</FormLabel>
+                          <FormLabel className="font-normal">Campus Staff</FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-2 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="administrator" />
+                          </FormControl>
+                          <FormLabel className="font-normal">Administrator</FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-2 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="technician" />
+                          </FormControl>
+                          <FormLabel className="font-normal">Technician</FormLabel>
                         </FormItem>
                       </RadioGroup>
                     </FormControl>
