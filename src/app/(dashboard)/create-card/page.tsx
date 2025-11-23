@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Camera, ArrowLeft, User, Smile, Eye, Glasses, VenetianMask, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,10 +35,23 @@ export default function CreateCardPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidatePhotoOutput | null>(null);
-  const { user, loading, setPhoto, setCardData } = useUser();
+  const { user, loading, setCardData } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Prevent rendering the page and redirect if the card is still valid.
+    // This logic is moved into useEffect to prevent "Cannot update a component while rendering" errors.
+    if (!loading && user?.cardGenerated && user.cardIssueDate) {
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      if (user.cardIssueDate > oneYearAgo) {
+        router.replace('/dashboard');
+      }
+    }
+  }, [user, loading, router]);
+
 
   const handlePhotoCapture = async (imageSrc: string) => {
     setCapturedImage(imageSrc); // Show the captured image immediately
@@ -121,18 +134,9 @@ export default function CreateCardPage() {
   
   const isSaveDisabled = isSaving || isValidating || !validationResult?.isValid;
 
-  if (loading) {
+  // While loading or if the user will be redirected, show nothing.
+  if (loading || (user?.cardGenerated && user.cardIssueDate && new Date(new Date().setFullYear(new Date().getFullYear() - 1)) < user.cardIssueDate)) {
     return null;
-  }
-
-  // Redirect if card is already generated and not expired
-  if (user?.cardGenerated) {
-    const now = new Date();
-    const expiryDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 365);
-     if (user.cardIssueDate && user.cardIssueDate > expiryDate) {
-        router.replace('/dashboard');
-        return null;
-    }
   }
 
   return (
