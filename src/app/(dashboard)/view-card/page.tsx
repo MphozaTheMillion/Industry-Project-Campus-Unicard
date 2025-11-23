@@ -1,25 +1,106 @@
 'use client';
 
-import { ArrowLeft } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowLeft, UserCheck, ShieldAlert } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { IdCard } from '@/components/id-card';
 import { Button } from '@/components/ui/button';
 import { useUser } from '@/contexts/user-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
+import { LivenessCheck } from '@/components/liveness-check';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+
+type VerificationStatus = 'unverified' | 'verifying' | 'successful' | 'failed';
 
 export default function ViewCardPage() {
   const router = useRouter();
   const { user, loading } = useUser();
+  const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>('unverified');
 
-  if (loading) {
-    return (
-      <div className="container mx-auto p-4 sm:p-6 lg:p-8 flex flex-col items-center">
-        <Skeleton className="h-10 w-48 mb-6" />
-        <Skeleton className="w-full max-w-sm h-[450px] rounded-2xl" />
-      </div>
-    );
-  }
+  const handleVerificationComplete = (success: boolean) => {
+    if (success) {
+      setVerificationStatus('successful');
+    } else {
+      setVerificationStatus('failed');
+    }
+  };
+
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="container mx-auto p-4 sm:p-6 lg:p-8 flex flex-col items-center">
+          <Skeleton className="h-10 w-48 mb-6" />
+          <Skeleton className="w-full max-w-sm h-[450px] rounded-2xl" />
+        </div>
+      );
+    }
+    
+    if (!user?.photo) {
+       return (
+          <div className="text-center p-8 border-2 border-dashed rounded-lg">
+            <p className="mb-4 text-muted-foreground">You haven't created a card yet.</p>
+            <Button asChild>
+                <Link href="/create-card">Create Your Card Now</Link>
+            </Button>
+          </div>
+        );
+    }
+
+    switch (verificationStatus) {
+      case 'unverified':
+      case 'verifying':
+        return (
+          <LivenessCheck
+            originalPhoto={user.photo}
+            onCompletion={handleVerificationComplete}
+            onStatusChange={(status) => {
+              if (status === 'verifying') {
+                setVerificationStatus('verifying');
+              }
+            }}
+          />
+        );
+      case 'failed':
+        return (
+          <Card className="w-full max-w-md text-center">
+            <CardHeader>
+              <div className="mx-auto bg-destructive/10 rounded-full p-3 w-fit">
+                <ShieldAlert className="h-10 w-10 text-destructive" />
+              </div>
+              <CardTitle className="mt-4">Verification Failed</CardTitle>
+              <CardDescription>We couldn't verify your identity. Please ensure you are in a well-lit area and follow the prompts carefully.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={() => setVerificationStatus('unverified')}>
+                Try Again
+              </Button>
+            </CardContent>
+          </Card>
+        );
+      case 'successful':
+        return (
+          <>
+            <div className="flex flex-col items-center justify-center animate-in fade-in duration-500">
+              <div className="text-center mb-8">
+                 <div className="mx-auto bg-green-100 rounded-full p-3 w-fit mb-4">
+                    <UserCheck className="h-10 w-10 text-green-600" />
+                  </div>
+                  <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                    Verification Successful
+                  </h1>
+                  <p className="text-lg text-muted-foreground mt-2">
+                    Your Digital ID Card is ready to view.
+                  </p>
+              </div>
+              <IdCard />
+            </div>
+          </>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -29,23 +110,7 @@ export default function ViewCardPage() {
       </Button>
 
       <div className="flex flex-col items-center justify-center">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl mb-2">
-          Your Digital ID Card
-        </h1>
-        <p className="text-lg text-muted-foreground mb-8">
-          Present this card for verification on campus.
-        </p>
-
-        {user?.photo ? (
-          <IdCard />
-        ) : (
-          <div className="text-center p-8 border-2 border-dashed rounded-lg">
-            <p className="mb-4 text-muted-foreground">You haven't created a card yet.</p>
-            <Button asChild>
-                <Link href="/create-card">Create Your Card Now</Link>
-            </Button>
-          </div>
-        )}
+        {renderContent()}
       </div>
     </div>
   );
