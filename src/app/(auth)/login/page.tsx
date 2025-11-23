@@ -99,7 +99,7 @@ export default function LoginPage() {
       if (values.role === 'administrator') {
         router.push('/admin/dashboard');
       } else {
-        router.push("/dashboard");
+        router.push("/user-dashboard");
       }
 
     } catch (error) {
