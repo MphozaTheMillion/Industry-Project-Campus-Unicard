@@ -7,6 +7,14 @@ import { GraduationCap, Briefcase, QrCode, User as UserIcon } from "lucide-react
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import Image from "next/image"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+
 
 interface IdCardProps {
   photoOverride?: string | null;
@@ -26,7 +34,6 @@ export function IdCard({ photoOverride }: IdCardProps) {
   }
 
   const displayName = user.name || "First Last";
-  const displayEmail = user.email || "user@example.com";
   const displayUserType = user.userType || "student";
   const displayPhoto = photoOverride !== undefined ? photoOverride : user.photo;
   
@@ -77,14 +84,26 @@ export function IdCard({ photoOverride }: IdCardProps) {
                   {(user.userType === 'campus_staff' || user.userType === 'administrator' || user.userType === 'technician') && (
                      <div>
                       <p className="text-xs text-muted-foreground">Email</p>
-                      <p className="font-mono text-sm font-semibold">{displayEmail}</p>
+                      <p className="font-mono text-sm font-semibold">{user.email}</p>
                     </div>
                   )}
 
                 </div>
-                <div className="p-2 bg-white rounded-lg shadow-md">
-                    <QrCode className="h-16 w-16 text-black" />
-                </div>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <div className="p-2 bg-white rounded-lg shadow-md cursor-pointer">
+                        <QrCode className="h-16 w-16 text-black" />
+                    </div>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Verification QR Code</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex items-center justify-center p-4 bg-white rounded-lg">
+                      <QrCode className="h-64 w-64 text-black" />
+                    </div>
+                  </DialogContent>
+                </Dialog>
             </div>
         </CardContent>
       </Card>
