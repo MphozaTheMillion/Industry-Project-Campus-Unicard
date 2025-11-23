@@ -29,11 +29,33 @@ import { Logo } from "@/components/logo"
 import { useToast } from "@/hooks/use-toast"
 
 const formSchema = z.object({
+  userType: z.enum(["student", "campus_staff", "administrator", "technician"], { required_error: "You need to select a user type." }),
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  studentNumber: z.string().optional(),
   email: z.string().email({ message: "Invalid email address." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
-  userType: z.enum(["student", "campus_staff", "administrator", "technician"], { required_error: "You need to select a user type." }),
-})
+  confirmPassword: z.string().optional(),
+  courseCode: z.string().optional(),
+  campusName: z.string().optional(),
+}).refine((data) => {
+  if (data.userType === 'student') {
+    return data.password === data.confirmPassword;
+  }
+  return true;
+}, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+}).refine(data => data.userType !== 'student' || !!data.studentNumber, {
+  message: 'Student number is required.',
+  path: ['studentNumber'],
+}).refine(data => data.userType !== 'student' || !!data.courseCode, {
+  message: 'Course code is required.',
+  path: ['courseCode'],
+}).refine(data => data.userType !== 'student' || !!data.campusName, {
+  message: 'Campus name is required.',
+  path: ['campusName'],
+});
+
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -48,6 +70,8 @@ export default function RegisterPage() {
       userType: "student",
     },
   })
+
+  const userType = form.watch("userType");
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     // In a real app, you'd handle registration here.
@@ -128,6 +152,26 @@ export default function RegisterPage() {
                   </FormItem>
                 )}
               />
+
+              {userType === "student" && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="studentNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Student Number</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. 212345678" {...field} value={field.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                </>
+              )}
+
               <FormField
                 control={form.control}
                 name="email"
@@ -154,6 +198,52 @@ export default function RegisterPage() {
                   </FormItem>
                 )}
               />
+
+              {userType === "student" && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Confirm Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="••••••••" {...field} value={field.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="courseCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Course Code</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. COS101" {...field} value={field.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                  control={form.control}
+                  name="campusName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Campus Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. Main Campus" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                </>
+              )}
+
+
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? "Creating Account..." : "Create Account"}
               </Button>
