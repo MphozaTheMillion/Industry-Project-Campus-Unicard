@@ -6,6 +6,8 @@ import * as z from "zod"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import React from "react"
+import { createUserWithEmailAndPassword, AuthError } from "firebase/auth"
+import { doc, setDoc, serverTimestamp } from "firebase/firestore"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -28,6 +30,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Logo } from "@/components/logo"
 import { useToast } from "@/hooks/use-toast"
+import { useFirestore, useAuth } from "@/firebase"
 
 const formSchema = z.object({
   userType: z.enum(["student", "campus_staff", "administrator", "technician"], { required_error: "You need to select a user type." }),
@@ -115,6 +118,8 @@ const formSchema = z.object({
 export default function RegisterPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const auth = useAuth()
+  const firestore = useFirestore()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -141,14 +146,59 @@ export default function RegisterPage() {
     }
   }, [userType, studentNumber, form]);
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // In a real app, you'd handle registration here.
-    console.log(values)
-    toast({
-      title: "Registration Successful",
-      description: "You can now log in with your credentials.",
-    })
-    router.push("/login")
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      // 1. Create user with Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      // 2. Create a "lock" document in the 'emails' collection
+      const emailLockRef = doc(firestore, "emails", values.email);
+      await setDoc(emailLockRef, { userId: user.uid });
+
+      // 3. Create user profile in 'userProfiles' collection
+      const userProfileRef = doc(firestore, "userProfiles", user.uid);
+      const [firstName, ...lastNameParts] = values.name.split(' ');
+      const lastName = lastNameParts.join(' ');
+      
+      const userProfileData = {
+        id: user.uid,
+        firstName: firstName,
+        lastName: lastName,
+        email: values.email,
+        registrationDate: serverTimestamp(),
+        profilePicture: "", // Initially empty
+        userType: values.userType,
+        studentNumber: values.studentNumber || null,
+        courseCode: values.courseCode || null,
+        workId: values.workId || null,
+        department: values.department || null,
+        adminId: values.adminId || null,
+        technicianId: values.technicianId || null,
+        campusName: values.campusName || null,
+      };
+
+      await setDoc(userProfileRef, userProfileData);
+
+      toast({
+        title: "Registration Successful",
+        description: "You can now log in with your credentials.",
+      });
+      router.push("/login");
+
+    } catch (error) {
+      console.error("Registration failed:", error);
+      const authError = error as AuthError;
+      let errorMessage = "An unexpected error occurred during registration.";
+      if (authError.code === 'auth/email-already-in-use') {
+        errorMessage = "This email is already registered. Please use a different email or log in.";
+      }
+      toast({
+        variant: "destructive",
+        title: "Registration Failed",
+        description: errorMessage,
+      });
+    }
   }
 
   return (
