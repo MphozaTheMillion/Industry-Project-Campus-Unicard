@@ -23,14 +23,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button";
 import { UserX, CheckCircle, Ban, Trash2, MoreHorizontal } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -230,13 +222,16 @@ export default function AdminDashboardPage() {
                   <TableHead>User Type</TableHead>
                   <TableHead>Card Status</TableHead>
                   <TableHead>Last Login</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="text-center">Activate</TableHead>
+                  <TableHead className="text-center">Suspend</TableHead>
+                  <TableHead className="text-center">Revoke</TableHead>
+                  <TableHead className="text-center">Remove</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {pageIsLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center">Loading users...</TableCell>
+                    <TableCell colSpan={9} className="text-center">Loading users...</TableCell>
                   </TableRow>
                 ) : users.length > 0 ? (
                   users.map((user) => (
@@ -248,67 +243,65 @@ export default function AdminDashboardPage() {
                         <StatusBadge status={user.cardStatus} />
                       </TableCell>
                        <TableCell className="whitespace-nowrap">{formatDate(user.lastLogin)}</TableCell>
-                       <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                               <Button variant="ghost" className="h-8 w-8 p-0" disabled={user.id === adminUser?.uid}>
-                                <span className="sr-only">Open menu</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem
-                                onClick={() => handleUpdateStatus(user.id, 'active')}
-                                disabled={user.cardStatus === 'active'}
-                              >
-                                Activate Card
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleUpdateStatus(user.id, 'suspended')}
-                                disabled={user.cardStatus === 'suspended'}
-                              >
-                                Suspend Card
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleUpdateStatus(user.id, 'revoked')}
-                                disabled={user.cardStatus === 'revoked'}
-                                className="text-destructive"
-                              >
-                                Revoke Card
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                               <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                      <div className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm text-destructive outline-none transition-colors hover:bg-accent focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50">
-                                          <Trash2 className="mr-2 h-4 w-4" />
-                                          Remove User
-                                      </div>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                              This action cannot be undone. This will permanently delete the user's
-                                              data from the database, but it will <span className="font-semibold">not</span> delete their login credentials.
-                                          </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                          <AlertDialogAction onClick={() => handleRemoveUser(user)} className="bg-destructive hover:bg-destructive/90">
-                                              Continue
-                                          </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                  </AlertDialogContent>
-                              </AlertDialog>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                       <TableCell className="text-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleUpdateStatus(user.id, 'active')}
+                            disabled={user.id === adminUser?.uid || user.cardStatus === 'active'}
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                          </Button>
+                       </TableCell>
+                       <TableCell className="text-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleUpdateStatus(user.id, 'suspended')}
+                            disabled={user.id === adminUser?.uid || user.cardStatus === 'suspended'}
+                          >
+                            <Ban className="h-4 w-4" />
+                          </Button>
+                       </TableCell>
+                       <TableCell className="text-center">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleUpdateStatus(user.id, 'revoked')}
+                            disabled={user.id === adminUser?.uid || user.cardStatus === 'revoked'}
+                          >
+                             <UserX className="h-4 w-4" />
+                          </Button>
+                       </TableCell>
+                       <TableCell className="text-center">
+                         <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                               <Button variant="destructive" size="sm" disabled={user.id === adminUser?.uid}>
+                                  <Trash2 className="h-4 w-4" />
+                               </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete the user's
+                                        data from the database, but it will <span className="font-semibold">not</span> delete their login credentials.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleRemoveUser(user)} className="bg-destructive hover:bg-destructive/90">
+                                        Continue
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                        </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center">
+                    <TableCell colSpan={9} className="text-center">
                       {error ? "You don't have permission to view users." : "No users found."}
                     </TableCell>
                   </TableRow>
