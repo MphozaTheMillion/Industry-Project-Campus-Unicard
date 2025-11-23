@@ -236,22 +236,8 @@ export default function RegisterPage() {
                       </FormItem>
                     )}
                   />
-                   <FormField
-                    control={form.control}
-                    name="campusName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Campus Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g. Main Campus" {...field} value={field.value ?? ""} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                 </>
               )}
-
 
               <FormField
                 control={form.control}
@@ -305,7 +291,7 @@ export default function RegisterPage() {
                 />
               )}
 
-              {userType === "student" && (
+              {(userType === "student" || userType === "campus_staff") && (
                 <FormField
                   control={form.control}
                   name="campusName"
