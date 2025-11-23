@@ -1,8 +1,6 @@
-
-
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { collection, getDocs, doc, updateDoc, getDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
@@ -78,7 +76,9 @@ export default function AdminDashboardPage() {
   const { data: userProfiles, isLoading: profilesLoading, error } = useCollection<UserProfile>(profilesCollection);
 
   useEffect(() => {
-    if (profilesLoading || !userProfiles || !firestore) {
+    if (!adminUser || !firestore) return; // Wait until admin user and firestore are available
+
+    if (profilesLoading || !userProfiles) {
       // If the collection is not ready, we reflect that in the loading state
       if (!profilesLoading) setLoading(false);
       return;
@@ -106,7 +106,7 @@ export default function AdminDashboardPage() {
     };
 
     fetchAllUsersWithStatus();
-  }, [userProfiles, profilesLoading, firestore]);
+  }, [userProfiles, profilesLoading, firestore, adminUser]);
 
   const handleUpdateStatus = async (userId: string, status: 'suspended' | 'revoked') => {
     if (!firestore) return;
@@ -257,7 +257,7 @@ export default function AdminDashboardPage() {
                        <TableCell>
                           <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                  <Button variant="destructive" size="sm">
+                                  <Button variant="destructive" size="sm" disabled={user.id === adminUser?.uid}>
                                       <Trash2 className="mr-2 h-4 w-4" />
                                       Remove
                                   </Button>
