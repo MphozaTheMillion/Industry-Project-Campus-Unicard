@@ -21,7 +21,7 @@ const ValidatePhotoInputSchema = z.object({
 export type ValidatePhotoInput = z.infer<typeof ValidatePhotoInputSchema>;
 
 const PhotoIssueSchema = z.object({
-    code: z.enum(["NOT_NECK_UP", "NOT_NEUTRAL_EXPRESSION", "EYES_NOT_VISIBLE", "HAS_HAT_OR_GLASSES", "HAS_SHADOWS_OR_REFLECTIONS", "NOT_A_PERSON"]),
+    code: z.enum(["NOT_NECK_UP", "NOT_NEUTRAL_EXPRESSION", "EYES_NOT_VISIBLE", "HAS_HAT_OR_GLASSES", "NOT_A_PERSON"]),
     feedback: z.string().describe("A user-friendly message explaining the issue and how to fix it."),
 });
 
@@ -46,8 +46,7 @@ const prompt = ai.definePrompt({
 2.  **Expression:** The person must have a neutral expression with their mouth closed. No smiling, frowning, or other exaggerated expressions.
 3.  **Eyes:** The person's eyes must be open and clearly visible.
 4.  **Accessories:** The person must not be wearing a hat, sunglasses, or regular glasses. Religious head coverings are acceptable as long as they do not obscure the face.
-5.  **Lighting:** The photo must be well-lit, with no shadows on the face or reflections in the background.
-6.  **Subject:** The photo must clearly be of a single person.
+5.  **Subject:** The photo must clearly be of a single person.
 
 Analyze the following image and determine if it is valid. For each rule that is violated, provide a specific issue code and user-friendly feedback. If the photo is valid, return \`isValid: true\` and an empty issues array.
 
