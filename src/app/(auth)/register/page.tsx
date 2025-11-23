@@ -195,35 +195,48 @@ export default function RegisterPage() {
       batch.set(userProfileRef, userProfileData);
 
       // 4. Commit the batch and handle potential permission errors
-      await batch.commit();
-      
-      toast({
-        title: "Registration Successful",
-        description: "You can now log in with your credentials.",
+      batch.commit().then(() => {
+        toast({
+          title: "Registration Successful",
+          description: "You can now log in with your credentials.",
+        });
+        router.push("/login");
+      }).catch((error) => {
+        // This is where we catch the permission error from the batch write
+        console.error("Firestore batch write failed:", error); // Log the raw error for debugging if needed
+        
+        // Create and emit the specialized error for the developer overlay
+        const permissionError = new FirestorePermissionError({
+            path: `userProfiles/${user.uid} and emails/${values.email}`, // Describe the batch
+            operation: 'create',
+            requestResourceData: {
+              emailLock: emailLockData,
+              userProfile: userProfileData,
+            }
+        });
+        errorEmitter.emit('permission-error', permissionError);
+
+        // Inform the user in the UI
+        toast({
+            variant: "destructive",
+            title: "Registration Failed",
+            description: "Could not save your user data. A permissions issue occurred.",
+        });
       });
-      router.push("/login");
 
     } catch (error) {
+      // This outer catch now primarily handles auth errors or the proactive email check failure
       console.error("Registration failed:", error);
       const authError = error as AuthError;
 
-      // Handle specific auth errors
       if (authError.code === 'auth/email-already-in-use') {
         form.setError("email", { 
             type: "manual", 
             message: "This email is already registered. Please log in." 
         });
-      } else if (error instanceof FirestorePermissionError) {
-        // If it's a Firestore permission error, emit it for the developer overlay
-        errorEmitter.emit('permission-error', error);
-        toast({
-          variant: "destructive",
-          title: "Registration Failed",
-          description: "Could not save user data due to a permissions issue.",
-        });
       }
       else {
-        // Generic fallback for other errors
+        // Generic fallback for other unexpected errors during setup
         toast({
           variant: "destructive",
           title: "Registration Failed",
