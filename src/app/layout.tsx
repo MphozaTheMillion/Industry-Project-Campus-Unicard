@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'CampusCard',
+  title: 'Unicard',
   description: 'Your Digital Student and Staff ID',
 };
 

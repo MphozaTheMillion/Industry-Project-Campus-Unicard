@@ -17,21 +17,18 @@ export default function Home() {
       <main className="flex-grow">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="py-12 md:py-24">
+            <div className="py-12 md:py-24 text-center lg:text-left">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-headline font-bold text-primary tracking-tighter mb-4">
-                Your Campus, Your Card, Your Control.
+                Welcome to Unicard
               </h1>
-              <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-xl">
-                Welcome to CampusCard, the secure and convenient way to access campus services with a digital ID. For students and staff.
+              <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0">
+                Your digital student and staff card, always with you.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <Button asChild size="lg">
-                  <Link href="/login">
-                    Login to Your Account <ArrowRight />
+                  <Link href="/register">
+                    Get Started <ArrowRight />
                   </Link>
-                </Button>
-                <Button asChild variant="secondary" size="lg">
-                  <Link href="/register">Register Now</Link>
                 </Button>
               </div>
             </div>
@@ -52,7 +49,7 @@ export default function Home() {
         </div>
       </main>
       <footer className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center text-muted-foreground">
-        <p>&copy; {new Date().getFullYear()} CampusCard. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()} Unicard. All rights reserved.</p>
       </footer>
     </div>
   );

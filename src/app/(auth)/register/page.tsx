@@ -67,7 +67,7 @@ export default function RegisterPage() {
       <Card>
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-headline">Create an Account</CardTitle>
-          <CardDescription>Join CampusCard to get your digital ID.</CardDescription>
+          <CardDescription>Join Unicard to get your digital ID.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
