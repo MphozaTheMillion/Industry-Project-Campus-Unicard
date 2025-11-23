@@ -19,15 +19,15 @@ export default function Home() {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="py-12 md:py-24 text-center lg:text-left">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-headline font-bold text-primary tracking-tighter mb-4">
-                Welcome to Unicard
+                The Future of Campus ID is Here
               </h1>
               <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0">
-                Your digital student and staff card, always with you.
+                Seamlessly access campus services with your secure, digital Unicard.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <Button asChild size="lg">
-                  <Link href="/register">
-                    Get Started <ArrowRight />
+                  <Link href="/login">
+                    Get Your Digital ID <ArrowRight />
                   </Link>
                 </Button>
               </div>
