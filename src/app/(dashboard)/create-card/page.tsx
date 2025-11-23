@@ -63,7 +63,7 @@ export default function CreateCardPage() {
         title: 'Success!',
         description: 'Your digital ID card has been created.',
       });
-      router.push('/dashboard/view-card');
+      router.push('/dashboard');
     } catch (error) {
       console.error('Error saving photo:', error);
       toast({

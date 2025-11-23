@@ -72,14 +72,14 @@ export default function DashboardPage() {
 
         <div className="grid gap-8 md:grid-cols-2">
           <DashboardCard
-            href="/dashboard/create-card"
+            href="/create-card"
             icon={<CreditCard className="h-6 w-6 text-primary" />}
             title="Create Digital Card"
             subtitle="Get your new ID card."
             description="Use your device's camera to take a professional photo and generate your new digital ID card."
           />
           <DashboardCard
-            href="/dashboard/view-card"
+            href="/view-card"
             icon={<Eye className="h-6 w-6 text-primary" />}
             title="View Digital Card"
             subtitle="Display your current ID."

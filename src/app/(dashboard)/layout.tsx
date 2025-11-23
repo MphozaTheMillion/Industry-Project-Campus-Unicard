@@ -22,12 +22,12 @@ export default function DashboardLayout({
       icon: LayoutGrid,
     },
     {
-      href: '/dashboard/create-card',
+      href: '/create-card',
       label: 'Create Card',
       icon: CreditCard,
     },
     {
-      href: '/dashboard/view-card',
+      href: '/view-card',
       label: 'View Card',
       icon: Eye,
     },
