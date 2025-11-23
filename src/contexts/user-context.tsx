@@ -1,9 +1,8 @@
 "use client"
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useAuth } from '@/firebase';
+import { useAuth, useFirestore, useUser as useFirebaseAuth } from '@/firebase'; // Renamed useUser to useFirebaseAuth to avoid conflict
 import { doc, getDoc } from 'firebase/firestore';
-import { useFirestore } from '@/firebase'; // Added import
 
 type UserType = "student" | "campus_staff" | "administrator" | "technician";
 
@@ -27,7 +26,7 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
-  const { user: authUser, isUserLoading: isAuthLoading } = useAuth();
+  const { user: authUser, isUserLoading: isAuthLoading } = useFirebaseAuth();
   const firestore = useFirestore();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
