@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Camera, Check, X, ArrowLeft, User, Eye, Smile, Glasses, VenetianMask } from 'lucide-react';
+import { Camera, ArrowLeft, User, Smile, Eye, Glasses, VenetianMask } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
