@@ -1,3 +1,4 @@
+
 /**
  * This ruleset enforces a strict user-ownership model for a CampusCard application.
  * All user-specific data is secured, ensuring users can only access their own information,
@@ -57,7 +58,8 @@ service cloud.firestore {
     }
     
     function isNotChangingDigitalIdCardKeys() {
-        return request.resource.data.userProfileId == resource.data.userProfileId;
+        return request.resource.data.userProfileId == resource.data.userProfileId && 
+               request.resource.data.userType == resource.data.userType;
     }
 
     // Rules for the /userProfiles collection

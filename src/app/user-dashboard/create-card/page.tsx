@@ -82,7 +82,7 @@ export default function CreateCardPage() {
   };
 
   const handleSave = async () => {
-    if (!capturedImage || !user?.uid) return;
+    if (!capturedImage || !user?.uid || !user?.userType) return;
 
     setIsSaving(true);
     try {
@@ -98,10 +98,11 @@ export default function CreateCardPage() {
         profilePicture: capturedImage,
       });
 
-      // 2. Create or update the digital ID card document with issue/expiry dates
+      // 2. Create or update the digital ID card document with issue/expiry dates and userType
       batch.set(cardDocRef, {
         id: 'main',
         userProfileId: user.uid,
+        userType: user.userType, // Denormalize userType for security rules
         cardIssueDate: serverTimestamp(),
         cardExpiryDate: cardExpiryDate,
         cardStatus: 'active',
