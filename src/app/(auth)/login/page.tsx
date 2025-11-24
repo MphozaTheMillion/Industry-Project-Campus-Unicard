@@ -1,3 +1,4 @@
+
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -54,9 +55,15 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
-      // 2. Fetch user profile from Firestore
+      // 2. Fetch user profile and card data from Firestore in parallel
       const userProfileRef = doc(firestore, "userProfiles", user.uid);
-      const userProfileSnap = await getDoc(userProfileRef);
+      const cardDocRef = doc(firestore, "userProfiles", user.uid, "digitalIdCards", "main");
+      
+      const [userProfileSnap, cardDocSnap] = await Promise.all([
+          getDoc(userProfileRef),
+          getDoc(cardDocRef)
+      ]);
+
 
       if (!userProfileSnap.exists()) {
         await signOut(auth); // Sign out if profile doesn't exist
@@ -85,12 +92,26 @@ export default function LoginPage() {
         return;
       }
 
-      // 4. Update last login timestamp
+      // 4. Verify card status if the card exists
+      if (cardDocSnap.exists()) {
+        const cardData = cardDocSnap.data();
+        if (cardData.cardStatus === 'suspended' || cardData.cardStatus === 'revoked') {
+          await signOut(auth); // Sign out if card is not active
+          toast({
+            variant: "destructive",
+            title: "Access Denied",
+            description: `Your account is currently ${cardData.cardStatus}. Please contact administration.`,
+          });
+          return;
+        }
+      }
+
+      // 5. Update last login timestamp
       await updateDoc(userProfileRef, {
         lastLogin: serverTimestamp()
       });
 
-      // 5. On success, redirect based on role
+      // 6. On success, redirect based on role
       toast({
         title: "Login Successful",
         description: "Redirecting...",
@@ -229,3 +250,5 @@ export default function LoginPage() {
     </div>
   )
 }
+
+    
