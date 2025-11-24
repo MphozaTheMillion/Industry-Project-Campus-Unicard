@@ -16,7 +16,7 @@ import { IdCard } from '@/components/id-card';
 import { useUser } from '@/contexts/user-context';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { doc, updateDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { doc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -41,8 +41,6 @@ export default function CreateCardPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Prevent rendering the page and redirect if the card is still valid.
-    // This logic is moved into useEffect to prevent "Cannot update a component while rendering" errors.
     if (!loading && user?.cardGenerated && user.cardIssueDate) {
       const oneYearAgo = new Date();
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
@@ -54,9 +52,9 @@ export default function CreateCardPage() {
 
 
   const handlePhotoCapture = async (imageSrc: string) => {
-    setCapturedImage(imageSrc); // Show the captured image immediately
+    setCapturedImage(imageSrc);
     setIsValidating(true);
-    setValidationResult(null); // Clear previous results
+    setValidationResult(null);
 
     try {
       const result = await validatePhoto({ photoDataUri: imageSrc });
@@ -68,7 +66,6 @@ export default function CreateCardPage() {
         title: 'Validation Error',
         description: 'Could not validate the photo. Please try again.',
       });
-      // Treat as invalid if the validation service fails
       setValidationResult({ isValid: false, issues: [{ code: 'NOT_A_PERSON', feedback: 'An unexpected error occurred during validation.' }] });
     } finally {
       setIsValidating(false);
@@ -92,16 +89,14 @@ export default function CreateCardPage() {
       const cardIssueDate = new Date();
       const cardExpiryDate = new Date(cardIssueDate.getFullYear() + 1, cardIssueDate.getMonth(), cardIssueDate.getDate());
 
-      // 1. Update user profile with the new photo
       batch.update(userDocRef, {
         profilePicture: capturedImage,
       });
 
-      // 2. Create or update the digital ID card document with issue/expiry dates and userType
       batch.set(cardDocRef, {
         id: 'main',
         userProfileId: user.uid,
-        userType: user.userType, // Denormalize userType for security rules
+        userType: user.userType, 
         cardIssueDate: serverTimestamp(),
         cardExpiryDate: cardExpiryDate,
         cardStatus: 'active',
@@ -109,7 +104,6 @@ export default function CreateCardPage() {
 
       await batch.commit();
 
-      // Explicitly update the context after successful save
       setCardData({
         photo: capturedImage,
         cardGenerated: true,
@@ -135,7 +129,6 @@ export default function CreateCardPage() {
   
   const isSaveDisabled = isSaving || isValidating || !validationResult?.isValid;
 
-  // While loading or if the user will be redirected, show nothing.
   if (loading || (user?.cardGenerated && user.cardIssueDate && new Date(new Date().setFullYear(new Date().getFullYear() - 1)) < user.cardIssueDate)) {
     return null;
   }

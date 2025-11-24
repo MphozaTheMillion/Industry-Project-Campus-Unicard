@@ -1,35 +1,8 @@
 
-/**
- * This ruleset enforces a strict user-ownership model for a CampusCard application.
- * All user-specific data is secured, ensuring users can only access their own information,
- * with the exception of administrators who have read-only access to all profiles for management.
- *
- * Core Philosophy:
- * The security model is centered on user ownership and role-based access. Data is segregated by
- * user ID, allowing for simple and performant access control for regular users. Administrators
- * are granted special read privileges to oversee the system.
- *
- * Data Structure:
- * - /userProfiles/{userId}: Each user's profile. Readable by the owner and admins.
- * - /userProfiles/{userId}/digitalIdCards/{cardId}: A subcollection for the user's ID card.
- *   Access is managed by the admin or the owner.
- * - /emails/{email}: A utility collection to enforce unique email registrations.
- *
- * Key Security Decisions:
- * - Strict Ownership for Users: Regular users can only access their own data.
- * - Admin Privileges: Administrators can read all user profiles and can update card statuses.
- *   Write operations for admins rely on custom claims to avoid disallowed get() calls.
- * - No User Enumeration (for non-admins): Listing documents in top-level collections
- *   is disallowed for regular users to protect privacy.
- * - Email Uniqueness: The /emails collection ensures an email can only be registered once.
- *   This is a write-once, non-readable collection for clients.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions for cleaner, more readable rules.
-    
     function isSignedIn() {
       return request.auth != null;
     }
@@ -41,50 +14,47 @@ service cloud.firestore {
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
     }
-
-    function isAdmin() {
-      // For read operations, get() is allowed and can be used to check the user's profile.
-      // For write operations, we MUST rely on custom claims because get() on another document is disallowed.
-      // This hybrid approach ensures security for both scenarios.
-      return isSignedIn() && (
-        (request.method in ['get', 'list'] && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userType == 'administrator') ||
-        (request.method in ['create', 'update', 'delete'] && request.auth.token.userType == 'administrator')
-      );
-    }
-
-    function isNotChangingUserProfileKeys() {
-      return request.resource.data.id == resource.data.id &&
-             request.resource.data.email == resource.data.email;
+    
+    function isRequestingUserAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userType == 'administrator';
     }
     
-    function isNotChangingDigitalIdCardKeys() {
+    function isNotChangingSensitiveFields() {
+      return request.resource.data.id == resource.data.id &&
+             request.resource.data.email == resource.data.email &&
+             request.resource.data.userType == resource.data.userType;
+    }
+    
+    function isNotChangingCardSensitiveFields() {
         return request.resource.data.userProfileId == resource.data.userProfileId && 
                request.resource.data.userType == resource.data.userType;
     }
 
-    // Rules for the /userProfiles collection
     match /userProfiles/{userProfileId} {
-      allow get: if isOwner(userProfileId) || isAdmin();
-      allow list: if isAdmin(); // Only admins can list all users
+      allow get: if isOwner(userProfileId) || isRequestingUserAdmin();
+      allow list: if isRequestingUserAdmin();
       allow create: if isOwner(userProfileId) && 
                      request.resource.data.id == userProfileId &&
                      !exists(/databases/$(database)/documents/emails/$(request.resource.data.email));
-      allow update: if isExistingOwner(userProfileId) && isNotChangingUserProfileKeys();
-      allow delete: if isExistingOwner(userProfileId) || isAdmin();
+      allow update: if isExistingOwner(userProfileId) && isNotChangingSensitiveFields();
+      allow delete: if isExistingOwner(userProfileId) || isRequestingUserAdmin();
 
-      // Rules for the nested digitalIdCards subcollection
       match /digitalIdCards/{cardId} {
-        allow get, list: if isOwner(userProfileId) || isAdmin();
+        allow get, list: if isOwner(userProfileId) || isRequestingUserAdmin();
         allow create: if isOwner(userProfileId) && request.resource.data.userProfileId == userProfileId;
-        allow update: if (isOwner(userProfileId) && isNotChangingDigitalIdCardKeys() && !('cardStatus' in request.resource.data.diff(resource.data))) ||
-                       (isAdmin() && request.resource.data.keys().hasOnly(['cardStatus']));
-        allow delete: if isOwner(userProfileId) || isAdmin();
+        
+        // Corrected Update Rule:
+        // 1. An owner can update their own card, but they cannot change the 'cardStatus'.
+        // 2. An admin can update any card, but only the 'cardStatus' field.
+        allow update: if (isOwner(userProfileId) && isNotChangingCardSensitiveFields() && !('cardStatus' in request.resource.data.diff(resource.data))) ||
+                       (isRequestingUserAdmin() && request.resource.data.keys().hasOnly(['cardStatus']));
+                       
+        allow delete: if isOwner(userProfileId) || isRequestingUserAdmin();
       }
     }
     
-    // Rules for the /emails collection to enforce uniqueness
     match /emails/{emailId} {
-      allow read, list, update, delete: if false; // Nobody can read or change email locks
+      allow read, list, update, delete: if false;
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
     }
   }
