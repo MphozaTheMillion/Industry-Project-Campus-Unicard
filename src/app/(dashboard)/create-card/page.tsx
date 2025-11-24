@@ -47,7 +47,7 @@ export default function CreateCardPage() {
       const oneYearAgo = new Date();
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
       if (user.cardIssueDate > oneYearAgo) {
-        router.replace('/dashboard');
+        router.replace('/user-dashboard');
       }
     }
   }, [user, loading, router]);
@@ -120,7 +120,7 @@ export default function CreateCardPage() {
         title: 'Success!',
         description: 'Your digital ID card has been created.',
       });
-      router.push('/dashboard');
+      router.push('/user-dashboard');
     } catch (error) {
       console.error('Error saving card:', error);
       toast({
