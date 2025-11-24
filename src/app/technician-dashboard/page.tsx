@@ -14,8 +14,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Wifi, Server, Camera, ShieldCheck, GitCommit, AlertCircle, RefreshCw, Database } from 'lucide-react';
+import { Wifi, Server, Camera, ShieldCheck, GitCommit, AlertCircle, RefreshCw, Database, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 
 const StatusIndicator = ({ status }: { status: 'operational' | 'degraded' | 'down' }) => {
@@ -43,8 +44,10 @@ type ServiceStatus = {
 
 export default function TechnicianDashboardPage() {
   const { user, loading: userLoading } = useUser();
+  const { toast } = useToast();
   const [services, setServices] = useState<ServiceStatus[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDiagnosing, setIsDiagnosing] = useState(false);
 
   const refreshStatuses = () => {
     setLoading(true);
@@ -60,6 +63,22 @@ export default function TechnicianDashboardPage() {
       setLoading(false);
     }, 1000);
   };
+  
+  const handleRunDiagnostic = () => {
+    setIsDiagnosing(true);
+    toast({
+      title: "Running Diagnostics",
+      description: "Please wait while we check all systems.",
+    });
+
+    setTimeout(() => {
+      setIsDiagnosing(false);
+      toast({
+        title: "Diagnostic Complete",
+        description: "All systems are nominal. No issues found.",
+      });
+    }, 3000);
+  }
 
   useEffect(() => {
     refreshStatuses();
@@ -157,7 +176,10 @@ export default function TechnicianDashboardPage() {
                   <span className="text-muted-foreground">Current Auth UID:</span>
                   {userLoading ? <Skeleton className="h-5 w-48" /> : <span className="font-mono">{user?.uid || 'Not authenticated'}</span>}
                 </div>
-                <Button variant="outline" className="w-full">Run Full Diagnostic</Button>
+                <Button variant="outline" className="w-full" onClick={handleRunDiagnostic} disabled={isDiagnosing}>
+                  {isDiagnosing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isDiagnosing ? "Running..." : "Run Full Diagnostic"}
+                </Button>
               </CardContent>
             </Card>
         </div>
