@@ -119,6 +119,8 @@ export default function LoginPage() {
       
       if (values.role === 'administrator') {
         router.push('/admin/dashboard');
+      } else if (values.role === 'technician') {
+        router.push('/technician-dashboard');
       } else {
         router.push("/user-dashboard");
       }
@@ -250,5 +252,3 @@ export default function LoginPage() {
     </div>
   )
 }
-
-    
