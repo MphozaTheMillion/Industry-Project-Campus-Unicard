@@ -11,43 +11,36 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
-    
+    // Correctly checks the user profile of the person making the request.
+    // This is allowed in write rules because it uses `request.auth.uid`.
     function isRequestingUserAdmin() {
       return isSignedIn() && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userType == 'administrator';
     }
     
     function isNotChangingSensitiveFields() {
+      // Users cannot change their own ID, email, or user type after creation.
       return request.resource.data.id == resource.data.id &&
              request.resource.data.email == resource.data.email &&
              request.resource.data.userType == resource.data.userType;
     }
     
-    function isNotChangingCardSensitiveFields() {
-        return request.resource.data.userProfileId == resource.data.userProfileId && 
-               request.resource.data.userType == resource.data.userType;
-    }
-
     match /userProfiles/{userProfileId} {
       allow get: if isOwner(userProfileId) || isRequestingUserAdmin();
       allow list: if isRequestingUserAdmin();
       allow create: if isOwner(userProfileId) && 
                      request.resource.data.id == userProfileId &&
                      !exists(/databases/$(database)/documents/emails/$(request.resource.data.email));
-      allow update: if isExistingOwner(userProfileId) && isNotChangingSensitiveFields();
-      allow delete: if isExistingOwner(userProfileId) || isRequestingUserAdmin();
+      allow update: if isOwner(userProfileId) && isNotChangingSensitiveFields();
+      allow delete: if isOwner(userProfileId) || isRequestingUserAdmin();
 
       match /digitalIdCards/{cardId} {
         allow get, list: if isOwner(userProfileId) || isRequestingUserAdmin();
         allow create: if isOwner(userProfileId) && request.resource.data.userProfileId == userProfileId;
         
-        // Corrected Update Rule:
-        // 1. An owner can update their own card, but they cannot change the 'cardStatus'.
-        // 2. An admin can update any card, but only the 'cardStatus' field.
-        allow update: if (isOwner(userProfileId) && isNotChangingCardSensitiveFields() && !('cardStatus' in request.resource.data.diff(resource.data))) ||
-                       (isRequestingUserAdmin() && request.resource.data.keys().hasOnly(['cardStatus']));
+        // CORRECTED UPDATE RULE:
+        // - An owner can update any field EXCEPT 'cardStatus'.
+        // - An admin can update any field on any card.
+        allow update: if (isOwner(userProfileId) && !('cardStatus' in request.resource.data.diff(resource.data))) || isRequestingUserAdmin();
                        
         allow delete: if isOwner(userProfileId) || isRequestingUserAdmin();
       }
